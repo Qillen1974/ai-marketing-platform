@@ -5,6 +5,7 @@
   "main": "src/index.js",
   "scripts": {
     "dev": "nodemon src/index.js",
+    "build": "echo 'Backend build skipped - no build required'",
     "start": "node src/index.js",
     "test": "jest"
   },

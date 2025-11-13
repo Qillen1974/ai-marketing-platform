@@ -377,7 +377,6 @@ export default function WebsiteDetailsPage({
                     <div className="text-xs text-gray-600 space-y-1">
                       <p>Search Volume: <span className="font-semibold">{kw.searchVolume?.toLocaleString() || 'N/A'}</span></p>
                       <p>Difficulty: <span className="font-semibold">{kw.difficulty || 'N/A'}/100</span></p>
-                      {kw.cpc && <p>Est. CPC: <span className="font-semibold">${kw.cpc}</span></p>}
                     </div>
                   </div>
                 ))}
