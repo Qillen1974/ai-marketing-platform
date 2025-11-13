@@ -1,0 +1,23 @@
+{
+  "name": "ai-marketing",
+  "version": "1.0.0",
+  "description": "AI-Powered Website Marketing Platform",
+  "private": true,
+  "workspaces": [
+    "frontend",
+    "backend"
+  ],
+  "scripts": {
+    "dev": "npm run dev --workspaces",
+    "build": "npm run build --workspaces",
+    "start": "npm start --workspaces"
+  },
+  "keywords": [
+    "marketing",
+    "seo",
+    "ai",
+    "saas"
+  ],
+  "author": "",
+  "license": "ISC"
+}
