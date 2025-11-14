@@ -34,6 +34,12 @@ export default function Navbar() {
           >
             Backlinks
           </Link>
+          <Link
+            href="/dashboard/settings"
+            className="text-sm font-medium text-gray-600 hover:text-gray-900"
+          >
+            Settings
+          </Link>
 
           <div className="text-sm hidden sm:block">
             <p className="font-semibold text-gray-800">{user?.fullName}</p>

@@ -10,6 +10,7 @@ const keywordRoutes = require('./routes/keywordRoutes');
 const backlinkRoutes = require('./routes/backlinkRoutes');
 const outreachRoutes = require('./routes/outreachRoutes');
 const monitoringRoutes = require('./routes/monitoringRoutes');
+const settingsRoutes = require('./routes/settingsRoutes');
 
 const app = express();
 const PORT = process.env.PORT || 5000;
@@ -55,6 +56,7 @@ app.use('/api/keywords', keywordRoutes);
 app.use('/api/backlinks', backlinkRoutes);
 app.use('/api/outreach', outreachRoutes);
 app.use('/api/monitoring', monitoringRoutes);
+app.use('/api/settings', settingsRoutes);
 
 // Health check endpoint
 app.get('/health', (req, res) => {
