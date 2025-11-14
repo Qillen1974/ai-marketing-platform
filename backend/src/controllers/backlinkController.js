@@ -1,5 +1,6 @@
 const { pool } = require('../config/database');
 const { discoverBacklinkOpportunities } = require('../services/backlinkService');
+const { checkLimit, trackUsage } = require('../services/usageService');
 
 // Discover backlink opportunities for a website
 const discoverOpportunities = async (req, res) => {
@@ -20,19 +21,25 @@ const discoverOpportunities = async (req, res) => {
 
     const website = websiteResult.rows[0];
 
-    // TODO: Re-enable plan check in production
-    // For now, allowing all users to test backlink discovery
-    // const userResult = await pool.query(
-    //   'SELECT plan FROM users WHERE id = $1',
-    //   [userId]
-    // );
-    //
-    // const user = userResult.rows[0];
-    // if (user.plan === 'free') {
-    //   return res.status(403).json({
-    //     error: 'Backlink discovery is available for Pro and Enterprise plans only',
-    //   });
-    // }
+    // Get user plan and check quota
+    const userResult = await pool.query(
+      'SELECT plan FROM users WHERE id = $1',
+      [userId]
+    );
+
+    const user = userResult.rows[0];
+
+    // Check if user has backlink discovery quota remaining
+    const backlinkQuota = await checkLimit(userId, 'backlink_discovery', user.plan);
+    if (backlinkQuota.hasExceeded && !backlinkQuota.isUnlimited) {
+      return res.status(429).json({
+        error: 'Monthly backlink discovery quota exceeded',
+        quotaUsed: backlinkQuota.currentUsage,
+        quotaLimit: backlinkQuota.limit,
+        remaining: backlinkQuota.remaining,
+        message: 'You have exceeded your monthly backlink discovery limit. Upgrade your plan or provide your own Serper API key.',
+      });
+    }
 
     console.log(`🔗 Starting backlink discovery for website: ${website.domain}`);
 
@@ -115,10 +122,19 @@ const discoverOpportunities = async (req, res) => {
 
     console.log(`✅ Saved ${savedOpportunities.length} opportunities to database`);
 
+    // Track usage
+    await trackUsage(userId, 'backlink_discovery', 1);
+
+    // Get updated quota for response
+    const updatedQuota = await checkLimit(userId, 'backlink_discovery', user.plan);
+
     res.json({
       message: `Discovered ${savedOpportunities.length} backlink opportunities`,
       campaignId: campaignId,
       opportunities: savedOpportunities,
+      quotaRemaining: updatedQuota.remaining,
+      quotaUsed: updatedQuota.currentUsage,
+      quotaLimit: updatedQuota.limit,
     });
   } catch (error) {
     console.error('Discover opportunities error:', error);

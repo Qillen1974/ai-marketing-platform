@@ -1,6 +1,7 @@
 const { pool } = require('../config/database');
 const { generateEmail } = require('../services/emailService');
 const { sendOutreachEmail: sendEmailViaService } = require('../services/emailSendingService');
+const { checkLimit, trackUsage } = require('../services/usageService');
 
 /**
  * Generate outreach email for an opportunity
@@ -102,6 +103,26 @@ const sendOutreachEmail = async (req, res) => {
       return res.status(404).json({ error: 'Opportunity not found' });
     }
 
+    // Get user plan and check quota
+    const userResult = await pool.query(
+      'SELECT plan FROM users WHERE id = $1',
+      [userId]
+    );
+
+    const user = userResult.rows[0];
+
+    // Check if user has email sending quota remaining
+    const emailQuota = await checkLimit(userId, 'email_sent', user.plan);
+    if (emailQuota.hasExceeded && !emailQuota.isUnlimited) {
+      return res.status(429).json({
+        error: 'Monthly email sending quota exceeded',
+        quotaUsed: emailQuota.currentUsage,
+        quotaLimit: emailQuota.limit,
+        remaining: emailQuota.remaining,
+        message: 'You have exceeded your monthly email sending limit. Upgrade your plan or provide your own Resend API key.',
+      });
+    }
+
     console.log(`📬 Sending outreach email for opportunity ${opportunityId}...`);
 
     // Get opportunity details to find contact info
@@ -145,9 +166,15 @@ const sendOutreachEmail = async (req, res) => {
         ['contacted', opportunityId]
       );
       console.log(`✅ Email sent successfully (Resend ID: ${emailResult.messageId})`);
+
+      // Track usage only if email was actually sent
+      await trackUsage(userId, 'email_sent', 1);
     } else {
       console.warn(`⚠️ Email sending failed: ${emailResult.error}`);
     }
+
+    // Get updated quota for response
+    const updatedQuota = await checkLimit(userId, 'email_sent', user.plan);
 
     res.json({
       message: emailResult.success ? 'Email sent successfully' : 'Failed to send email',
@@ -158,6 +185,9 @@ const sendOutreachEmail = async (req, res) => {
         emailSuccess: emailResult.success,
         error: emailResult.error,
       },
+      quotaRemaining: updatedQuota.remaining,
+      quotaUsed: updatedQuota.currentUsage,
+      quotaLimit: updatedQuota.limit,
     });
   } catch (error) {
     console.error('Send email error:', error);

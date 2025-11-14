@@ -1,5 +1,6 @@
 const { pool } = require('../config/database');
 const { performSEOAudit, getKeywordResearch } = require('../services/seoService');
+const { checkLimit, trackUsage } = require('../services/usageService');
 
 // Run an SEO audit
 const runAudit = async (req, res) => {
@@ -19,30 +20,23 @@ const runAudit = async (req, res) => {
 
     const website = websiteResult.rows[0];
 
-    // Check API quota
+    // Get user plan
     const userResult = await pool.query(
-      'SELECT api_quota_monthly, api_quota_used, quota_reset_date FROM users WHERE id = $1',
+      'SELECT plan FROM users WHERE id = $1',
       [userId]
     );
 
     const user = userResult.rows[0];
 
-    // Reset quota if month has passed
-    const lastReset = new Date(user.quota_reset_date);
-    const now = new Date();
-    if (now.getMonth() !== lastReset.getMonth() || now.getFullYear() !== lastReset.getFullYear()) {
-      await pool.query('UPDATE users SET api_quota_used = 0, quota_reset_date = NOW() WHERE id = $1', [
-        userId,
-      ]);
-      user.api_quota_used = 0;
-    }
-
-    // Check if user has quota remaining
-    if (user.api_quota_used >= user.api_quota_monthly) {
+    // Check if user has audit quota remaining
+    const auditQuota = await checkLimit(userId, 'audit', user.plan);
+    if (auditQuota.hasExceeded && !auditQuota.isUnlimited) {
       return res.status(429).json({
-        error: 'Monthly API quota exceeded',
-        quotaUsed: user.api_quota_used,
-        quotaLimit: user.api_quota_monthly,
+        error: 'Monthly audit quota exceeded',
+        quotaUsed: auditQuota.currentUsage,
+        quotaLimit: auditQuota.limit,
+        remaining: auditQuota.remaining,
+        message: 'You have exceeded your monthly audit limit. Upgrade your plan or provide your own Google PageSpeed API key.',
       });
     }
 
@@ -116,8 +110,11 @@ const runAudit = async (req, res) => {
       // Don't fail the entire audit if keyword saving fails
     }
 
-    // Increment API quota usage
-    await pool.query('UPDATE users SET api_quota_used = api_quota_used + 1 WHERE id = $1', [userId]);
+    // Track usage
+    await trackUsage(userId, 'audit', 1);
+
+    // Get updated quota for response
+    const updatedQuota = await checkLimit(userId, 'audit', user.plan);
 
     res.json({
       message: 'Audit completed successfully',
@@ -136,7 +133,9 @@ const runAudit = async (req, res) => {
         pageSpeedScore: auditData.pageSpeedScore,
         ssl: auditData.ssl,
       },
-      quotaRemaining: user.api_quota_monthly - (user.api_quota_used + 1),
+      quotaRemaining: updatedQuota.remaining,
+      quotaUsed: updatedQuota.currentUsage,
+      quotaLimit: updatedQuota.limit,
     });
   } catch (error) {
     console.error('Audit error:', error);
