@@ -58,7 +58,7 @@ export default function PlansPage() {
         emails: '5',
         websites: '1',
       },
-      cta: user?.plan === 'free' ? 'Your Plan' : 'Downgrade to Free',
+      cta: user?.plan?.toLowerCase() === 'free' ? 'Your Plan' : 'Downgrade to Free',
     },
     {
       name: 'STARTER',
@@ -80,7 +80,7 @@ export default function PlansPage() {
         websites: '10',
       },
       recommended: true,
-      cta: user?.plan === 'starter' ? 'Your Plan' : 'Upgrade Now',
+      cta: user?.plan?.toLowerCase() === 'starter' ? 'Your Plan' : 'Upgrade Now',
     },
     {
       name: 'PROFESSIONAL',
@@ -102,7 +102,7 @@ export default function PlansPage() {
         emails: '500',
         websites: '∞',
       },
-      cta: user?.plan === 'professional' ? 'Your Plan' : 'Upgrade Now',
+      cta: user?.plan?.toLowerCase() === 'professional' ? 'Your Plan' : 'Upgrade Now',
     },
     {
       name: 'ENTERPRISE',
@@ -124,7 +124,7 @@ export default function PlansPage() {
         emails: '∞',
         websites: '∞',
       },
-      cta: 'Contact Sales',
+      cta: user?.plan?.toLowerCase() === 'enterprise' ? 'Your Plan' : 'Contact Sales',
     },
   ];
 
@@ -166,7 +166,7 @@ export default function PlansPage() {
               plan.recommended
                 ? 'border-2 border-blue-500 shadow-xl scale-105'
                 : 'border border-gray-200 shadow'
-            } ${plan.name === user?.plan.toUpperCase() ? 'bg-blue-50' : 'bg-white'}`}
+            } ${plan.name === user?.plan?.toUpperCase() ? 'bg-blue-50' : 'bg-white'}`}
           >
             {/* Recommended Badge */}
             {plan.recommended && (
@@ -199,9 +199,9 @@ export default function PlansPage() {
 
               {/* CTA Button */}
               <button
-                disabled={plan.name === user?.plan.toUpperCase()}
+                disabled={plan.name === user?.plan?.toUpperCase()}
                 className={`w-full py-3 rounded-lg font-semibold mb-6 transition ${
-                  plan.name === user?.plan.toUpperCase()
+                  plan.name === user?.plan?.toUpperCase()
                     ? 'bg-gray-200 text-gray-500 cursor-not-allowed'
                     : plan.recommended
                     ? 'bg-blue-600 text-white hover:bg-blue-700'
