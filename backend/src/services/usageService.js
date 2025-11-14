@@ -1,30 +1,31 @@
 const { pool } = require('../config/database');
 
 // Plan limits configuration
+// NOTE: Keys MUST match the serviceType strings used in usage tracking ('audit', 'backlink_discovery', 'email_sent')
 const PLAN_LIMITS = {
   free: {
-    audits: 5,
+    audit: 5,
     backlink_discovery: 10,
     email_sent: 5,
     websites: 1,
     team_members: 1,
   },
   starter: {
-    audits: 50,
+    audit: 50,
     backlink_discovery: 100,
     email_sent: 100,
     websites: 10,
     team_members: 1,
   },
   professional: {
-    audits: 500,
+    audit: 500,
     backlink_discovery: 500,
     email_sent: 500,
     websites: Infinity,
     team_members: 2,
   },
   enterprise: {
-    audits: Infinity,
+    audit: Infinity,
     backlink_discovery: Infinity,
     email_sent: Infinity,
     websites: Infinity,
