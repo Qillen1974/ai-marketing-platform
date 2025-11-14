@@ -81,7 +81,12 @@ const getCurrentUsage = async (userId, serviceType) => {
 const checkLimit = async (userId, serviceType, userPlan = 'free') => {
   try {
     const currentUsage = await getCurrentUsage(userId, serviceType);
-    const limit = PLAN_LIMITS[userPlan]?.[serviceType] || 0;
+
+    // Ensure plan is valid, default to 'free' if not provided or invalid
+    const safePlan = userPlan && PLAN_LIMITS[userPlan] ? userPlan : 'free';
+    const limit = PLAN_LIMITS[safePlan]?.[serviceType] || 0;
+
+    console.log(`📊 Quota Check - User ${userId}, Service: ${serviceType}, Plan: ${safePlan}, Usage: ${currentUsage}/${limit}`);
 
     return {
       currentUsage,

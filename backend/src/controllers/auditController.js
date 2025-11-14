@@ -26,7 +26,12 @@ const runAudit = async (req, res) => {
       [userId]
     );
 
+    if (userResult.rows.length === 0) {
+      return res.status(404).json({ error: 'User not found' });
+    }
+
     const user = userResult.rows[0];
+    console.log(`👤 User ${userId} plan: ${user.plan}`);
 
     // Check if user has audit quota remaining
     const auditQuota = await checkLimit(userId, 'audit', user.plan);

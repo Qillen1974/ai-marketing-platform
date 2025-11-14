@@ -110,7 +110,12 @@ const sendOutreachEmail = async (req, res) => {
       [userId]
     );
 
+    if (userResult.rows.length === 0) {
+      return res.status(404).json({ error: 'User not found' });
+    }
+
     const user = userResult.rows[0];
+    console.log(`👤 User ${userId} plan: ${user.plan}`);
 
     // Check if user has email sending quota remaining
     const emailQuota = await checkLimit(userId, 'email_sent', user.plan);
