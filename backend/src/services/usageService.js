@@ -48,7 +48,7 @@ const trackUsage = async (userId, serviceType, count = 1) => {
       `INSERT INTO usage_tracking (user_id, service_type, usage_count, month_year)
        VALUES ($1, $2, $3, $4)
        ON CONFLICT (user_id, service_type, month_year)
-       DO UPDATE SET usage_count = usage_count + $3, updated_at = NOW()
+       DO UPDATE SET usage_count = usage_tracking.usage_count + $3, updated_at = NOW()
        RETURNING usage_count`,
       [userId, serviceType, count, monthYear]
     );
