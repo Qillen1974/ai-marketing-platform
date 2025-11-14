@@ -53,8 +53,12 @@ const createAdmin = async (req, res) => {
   try {
     const { email, password, fullName, adminSecret } = req.body;
 
+    console.log(`\n👤 ADMIN CREATION REQUEST - Email: ${email}, Full Name: ${fullName}`);
+
     // Verify admin secret - this is a backdoor to create the first admin
     const validSecret = process.env.ADMIN_SECRET || 'change-me-in-production';
+    console.log(`🔐 Admin Secret Check - Provided: ${adminSecret}, Expected: ${validSecret}, Match: ${adminSecret === validSecret}`);
+
     if (adminSecret !== validSecret) {
       console.warn(`⚠️  Failed admin creation attempt with invalid secret`);
       return res.status(401).json({ error: 'Invalid admin secret' });
@@ -64,15 +68,22 @@ const createAdmin = async (req, res) => {
       return res.status(400).json({ error: 'Email, password, and full name are required' });
     }
 
+    console.log(`✅ Secret verified, proceeding with account creation...`);
+
     // Check if user already exists
     const existingUser = await pool.query('SELECT id FROM users WHERE email = $1', [email.toLowerCase()]);
 
     if (existingUser.rows.length > 0) {
+      console.warn(`⚠️  User already exists: ${email}`);
       return res.status(409).json({ error: 'Email already registered' });
     }
 
+    console.log(`✅ Email not taken, hashing password...`);
+
     // Hash password
     const passwordHash = await hashPassword(password);
+
+    console.log(`✅ Password hashed, inserting into database...`);
 
     // Create admin user
     const result = await pool.query(
@@ -95,7 +106,8 @@ const createAdmin = async (req, res) => {
       },
     });
   } catch (error) {
-    console.error('Create admin error:', error);
+    console.error('❌ Create admin error:', error.message);
+    console.error('❌ Full error:', error);
     res.status(500).json({ error: 'Failed to create admin account' });
   }
 };

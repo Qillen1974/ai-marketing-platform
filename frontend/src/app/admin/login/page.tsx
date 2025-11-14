@@ -38,7 +38,13 @@ export default function AdminLoginPage() {
         password,
       });
 
+      console.log('✅ Admin login response:', response.data);
+
       login(response.data.token, response.data.user);
+
+      // Also store as regular token so api.ts interceptor works
+      localStorage.setItem('token', response.data.token);
+
       toast.success('Admin login successful!');
       router.push('/admin/dashboard');
     } catch (error: any) {

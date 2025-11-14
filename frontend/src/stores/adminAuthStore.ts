@@ -34,6 +34,7 @@ export const useAdminAuthStore = create<AdminAuthStore>((set) => ({
   logout: () => {
     localStorage.removeItem('adminToken');
     localStorage.removeItem('admin');
+    localStorage.removeItem('token'); // Also remove regular token
     set({
       token: null,
       admin: null,
@@ -43,7 +44,8 @@ export const useAdminAuthStore = create<AdminAuthStore>((set) => ({
 
   loadFromLocalStorage: () => {
     if (typeof window !== 'undefined') {
-      const token = localStorage.getItem('adminToken');
+      // Try to load adminToken first, then fall back to regular token
+      let token = localStorage.getItem('adminToken') || localStorage.getItem('token');
       const adminStr = localStorage.getItem('admin');
       if (token && adminStr) {
         try {
@@ -57,6 +59,7 @@ export const useAdminAuthStore = create<AdminAuthStore>((set) => ({
           console.error('Error loading admin auth:', error);
           localStorage.removeItem('adminToken');
           localStorage.removeItem('admin');
+          localStorage.removeItem('token');
         }
       }
     }
