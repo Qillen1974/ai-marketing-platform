@@ -5,7 +5,17 @@ import { useWebsiteStore } from '@/stores/websiteStore';
 import { useRouter } from 'next/navigation';
 import { useEffect, useState } from 'react';
 import toast from 'react-hot-toast';
+import api from '@/lib/api';
 import BacklinkHealthWidget from '@/components/BacklinkHealthWidget';
+
+interface QuotaData {
+  plan: string;
+  usage: {
+    audits: { used: number; limit: number };
+    backlink_discovery: { used: number; limit: number };
+    email_sent: { used: number; limit: number };
+  };
+}
 
 export default function DashboardPage() {
   const token = useAuthStore((state) => state.token);
@@ -21,6 +31,7 @@ export default function DashboardPage() {
   const [targetKeywords, setTargetKeywords] = useState('');
   const [loading, setLoading] = useState(true);
   const [addingWebsite, setAddingWebsite] = useState(false);
+  const [quotaData, setQuotaData] = useState<QuotaData | null>(null);
 
   useEffect(() => {
     if (!token) {
@@ -28,7 +39,22 @@ export default function DashboardPage() {
       return;
     }
 
-    fetchWebsites().finally(() => setLoading(false));
+    const loadData = async () => {
+      try {
+        // Load websites
+        await fetchWebsites();
+
+        // Load quota data
+        const quotaResponse = await api.get('/quota');
+        setQuotaData(quotaResponse.data);
+      } catch (error) {
+        console.error('Failed to load dashboard data:', error);
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    loadData();
   }, [token]);
 
   const handleAddWebsite = async (e: React.FormEvent) => {
@@ -87,9 +113,12 @@ export default function DashboardPage() {
           <p className="text-3xl font-bold mt-2">{user?.plan.toUpperCase()}</p>
         </div>
         <div className="bg-white p-6 rounded-lg shadow">
-          <h3 className="text-gray-600 text-sm font-semibold">API Usage</h3>
+          <h3 className="text-gray-600 text-sm font-semibold">Monthly Audits</h3>
           <p className="text-3xl font-bold mt-2">
-            {user?.apiQuotaUsed}/{user?.apiQuotaMonthly}
+            {quotaData ? `${quotaData.usage.audits.used}/${quotaData.usage.audits.limit}` : 'Loading...'}
+          </p>
+          <p className="text-xs text-gray-500 mt-1">
+            {quotaData ? `${quotaData.usage.audits.limit - quotaData.usage.audits.used} remaining` : ''}
           </p>
         </div>
       </div>
