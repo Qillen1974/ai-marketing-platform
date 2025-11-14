@@ -9,6 +9,7 @@ const {
 const getQuota = async (req, res) => {
   try {
     const userId = req.user.userId;
+    console.log(`📊 QUOTA REQUEST - User: ${userId}`);
 
     // Get user info to check plan
     const userResult = await pool.query(
@@ -17,11 +18,15 @@ const getQuota = async (req, res) => {
     );
 
     if (userResult.rows.length === 0) {
+      console.error(`❌ User ${userId} not found`);
       return res.status(404).json({ error: 'User not found' });
     }
 
     const user = userResult.rows[0];
+    console.log(`👤 User plan: ${user.plan}`);
+
     const usageWithLimits = await getUserUsageWithLimits(userId, user.plan);
+    console.log(`📈 Usage with limits:`, usageWithLimits);
 
     res.json({
       plan: user.plan,
