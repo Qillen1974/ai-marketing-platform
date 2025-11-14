@@ -33,6 +33,21 @@ const register = async (req, res) => {
     );
 
     const user = result.rows[0];
+
+    // Initialize user settings with default provider
+    try {
+      await pool.query(
+        `INSERT INTO user_settings (user_id, preferred_ai_provider, plan)
+         VALUES ($1, $2, $3)
+         ON CONFLICT (user_id) DO NOTHING`,
+        [user.id, 'openai', user.plan]
+      );
+      console.log(`✅ Initialized settings for new user ${user.id}`);
+    } catch (settingsError) {
+      console.error('Error initializing user settings:', settingsError);
+      // Don't fail registration if settings init fails, we'll create it on-demand
+    }
+
     const token = generateToken(user.id, user.email, user.plan);
 
     res.status(201).json({

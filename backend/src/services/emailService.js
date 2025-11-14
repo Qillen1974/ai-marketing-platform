@@ -139,7 +139,7 @@ const generateEmail = async (opportunity, opportunityType, yourDomain, keywords,
     if (userId) {
       try {
         // Get user's preferred AI provider
-        const settingsResult = await pool.query(
+        let settingsResult = await pool.query(
           `SELECT preferred_ai_provider FROM user_settings WHERE user_id = $1`,
           [userId]
         );
@@ -147,10 +147,24 @@ const generateEmail = async (opportunity, opportunityType, yourDomain, keywords,
         console.log(`📊 Settings query result:`, settingsResult.rows);
 
         if (settingsResult.rows.length > 0) {
-          aiProvider = settingsResult.rows[0].preferred_ai_provider || 'claude';
+          aiProvider = settingsResult.rows[0].preferred_ai_provider || 'openai';
           console.log(`🎯 Preferred AI provider: ${aiProvider}`);
         } else {
-          console.warn(`⚠️  No settings found for user ${userId}, using default provider: claude`);
+          console.warn(`⚠️  No settings found for user ${userId}, creating default settings with openai`);
+          // Create default settings with openai as preferred provider
+          try {
+            await pool.query(
+              `INSERT INTO user_settings (user_id, preferred_ai_provider)
+               VALUES ($1, $2)
+               ON CONFLICT (user_id) DO NOTHING`,
+              [userId, 'openai']
+            );
+            aiProvider = 'openai';
+            console.log(`✅ Created default settings with openai for user ${userId}`);
+          } catch (createSettingsError) {
+            console.error('Error creating settings:', createSettingsError);
+            aiProvider = 'openai'; // Still default to openai even if DB insert fails
+          }
         }
 
         // Get user's API key for preferred provider
