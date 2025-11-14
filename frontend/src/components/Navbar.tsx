@@ -35,6 +35,12 @@ export default function Navbar() {
             Backlinks
           </Link>
           <Link
+            href="/dashboard/quota"
+            className="text-sm font-medium text-gray-600 hover:text-gray-900"
+          >
+            Quota
+          </Link>
+          <Link
             href="/dashboard/settings"
             className="text-sm font-medium text-gray-600 hover:text-gray-900"
           >

@@ -190,6 +190,20 @@ const initDatabase = async () => {
       CREATE INDEX IF NOT EXISTS idx_acquired_backlinks_website_id ON acquired_backlinks(website_id);
       CREATE INDEX IF NOT EXISTS idx_acquired_backlinks_opportunity_id ON acquired_backlinks(opportunity_id);
       CREATE INDEX IF NOT EXISTS idx_backlink_checks_backlink_id ON backlink_checks(acquired_backlink_id);
+
+      CREATE TABLE IF NOT EXISTS usage_tracking (
+        id SERIAL PRIMARY KEY,
+        user_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+        service_type VARCHAR(50) NOT NULL, -- 'audit', 'backlink_discovery', 'email_sent'
+        usage_count INTEGER DEFAULT 1,
+        month_year VARCHAR(7) NOT NULL, -- Format: 'YYYY-MM'
+        created_at TIMESTAMP DEFAULT NOW(),
+        updated_at TIMESTAMP DEFAULT NOW(),
+        UNIQUE(user_id, service_type, month_year)
+      );
+
+      CREATE INDEX IF NOT EXISTS idx_usage_tracking_user_id ON usage_tracking(user_id);
+      CREATE INDEX IF NOT EXISTS idx_usage_tracking_month ON usage_tracking(month_year);
     `);
     console.log('Database schema initialized successfully');
   } catch (error) {
