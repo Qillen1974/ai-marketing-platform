@@ -1,6 +1,6 @@
 const express = require('express');
 const router = express.Router();
-const { authenticateToken } = require('../middleware/auth');
+const { authMiddleware } = require('../middleware/auth');
 const {
   getApiKeys,
   saveApiKey,
@@ -10,7 +10,7 @@ const {
 } = require('../controllers/settingsController');
 
 // Middleware
-router.use(authenticateToken);
+router.use(authMiddleware);
 
 // Get user's API keys
 router.get('/api-keys', getApiKeys);
