@@ -1,8 +1,30 @@
 const axios = require('axios');
+const { pool } = require('../config/database');
+const crypto = require('crypto');
 
-// Email Service - Generate personalized outreach emails using Claude API
+// Email Service - Generate personalized outreach emails using user's configured AI API
 
 const CLAUDE_API_URL = 'https://api.anthropic.com/v1/messages';
+const OPENAI_API_URL = 'https://api.openai.com/v1/chat/completions';
+const GEMINI_API_URL = 'https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent';
+
+// Helper function to decrypt API keys
+const decryptApiKey = (encryptedData) => {
+  try {
+    const algorithm = 'aes-256-cbc';
+    const key = crypto.scryptSync(process.env.ENCRYPTION_KEY || 'default-secret-key-change-in-production', 'salt', 32);
+    const parts = encryptedData.split(':');
+    const iv = Buffer.from(parts[0], 'hex');
+    const encrypted = parts[1];
+    const decipher = crypto.createDecipheriv(algorithm, key, iv);
+    let decrypted = decipher.update(encrypted, 'hex', 'utf8');
+    decrypted += decipher.final('utf8');
+    return decrypted;
+  } catch (error) {
+    console.error('Decryption error:', error);
+    return null;
+  }
+};
 
 /**
  * Email templates for different opportunity types
@@ -98,17 +120,53 @@ BODY: [email body]`,
 };
 
 /**
- * Generate personalized email using Claude API
+ * Generate personalized email using user's configured AI API
  * @param {object} opportunity - Backlink opportunity details
  * @param {string} opportunityType - Type of opportunity (guest_post, resource_page, etc.)
  * @param {string} yourDomain - Your website domain
  * @param {array} keywords - Target keywords
+ * @param {number} userId - User ID to fetch their configured API key
  * @returns {object} Generated email with subject and body
  */
-const generateEmail = async (opportunity, opportunityType, yourDomain, keywords) => {
+const generateEmail = async (opportunity, opportunityType, yourDomain, keywords, userId) => {
   try {
-    if (!process.env.ANTHROPIC_API_KEY) {
-      console.warn('⚠️  Anthropic API key not configured, using template email');
+    // Get user's preferred AI provider and API key
+    let aiProvider = 'claude'; // default
+    let apiKey = process.env.ANTHROPIC_API_KEY; // fallback to env variable
+
+    if (userId) {
+      try {
+        // Get user's preferred AI provider
+        const settingsResult = await pool.query(
+          `SELECT preferred_ai_provider FROM user_settings WHERE user_id = $1`,
+          [userId]
+        );
+
+        if (settingsResult.rows.length > 0) {
+          aiProvider = settingsResult.rows[0].preferred_ai_provider || 'claude';
+        }
+
+        // Get user's API key for preferred provider
+        const keyResult = await pool.query(
+          `SELECT encrypted_key FROM user_api_keys WHERE user_id = $1 AND provider = $2`,
+          [userId, aiProvider]
+        );
+
+        if (keyResult.rows.length > 0) {
+          apiKey = decryptApiKey(keyResult.rows[0].encrypted_key);
+          console.log(`🔑 Using user's ${aiProvider.toUpperCase()} API key`);
+        } else {
+          console.warn(`⚠️  No ${aiProvider} API key found for user, falling back to template`);
+          return generateTemplateEmail(opportunity, opportunityType, yourDomain, keywords);
+        }
+      } catch (dbError) {
+        console.error('Error fetching user API key:', dbError);
+        return generateTemplateEmail(opportunity, opportunityType, yourDomain, keywords);
+      }
+    }
+
+    if (!apiKey) {
+      console.warn('⚠️  No AI API key configured, using template email');
       return generateTemplateEmail(opportunity, opportunityType, yourDomain, keywords);
     }
 
@@ -124,31 +182,90 @@ const generateEmail = async (opportunity, opportunityType, yourDomain, keywords)
       .replace(/{category}/g, opportunityType)
       .replace(/{alternative}/g, 'our comprehensive guide');
 
-    console.log(`🤖 Generating email for ${opportunity.sourceDomain} (${opportunityType})...`);
+    console.log(`🤖 Generating email using ${aiProvider.toUpperCase()} for ${opportunity.sourceDomain}...`);
 
-    const response = await axios.post(
-      CLAUDE_API_URL,
-      {
-        model: 'claude-3-5-sonnet-20241022',
-        max_tokens: 1000,
-        messages: [
-          {
-            role: 'user',
-            content: prompt,
-          },
-        ],
-      },
-      {
-        headers: {
-          'x-api-key': process.env.ANTHROPIC_API_KEY,
-          'anthropic-version': '2023-06-01',
-          'content-type': 'application/json',
+    let generatedText = '';
+    let model = '';
+
+    if (aiProvider === 'openai') {
+      const response = await axios.post(
+        OPENAI_API_URL,
+        {
+          model: 'gpt-4o-mini',
+          messages: [
+            {
+              role: 'user',
+              content: prompt,
+            },
+          ],
+          temperature: 0.7,
+          max_tokens: 1000,
         },
-        timeout: 30000,
-      }
-    );
+        {
+          headers: {
+            'Authorization': `Bearer ${apiKey}`,
+            'Content-Type': 'application/json',
+          },
+          timeout: 30000,
+        }
+      );
 
-    const generatedText = response.data.content[0].text;
+      generatedText = response.data.choices[0].message.content;
+      model = 'gpt-4o-mini';
+    } else if (aiProvider === 'gemini') {
+      const response = await axios.post(
+        `${GEMINI_API_URL}?key=${apiKey}`,
+        {
+          contents: [
+            {
+              parts: [
+                {
+                  text: prompt,
+                },
+              ],
+            },
+          ],
+          generationConfig: {
+            maxOutputTokens: 1000,
+          },
+        },
+        {
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          timeout: 30000,
+        }
+      );
+
+      generatedText = response.data.candidates[0].content.parts[0].text;
+      model = 'gemini-1.5-flash';
+    } else {
+      // Default to Claude
+      const response = await axios.post(
+        CLAUDE_API_URL,
+        {
+          model: 'claude-3-5-sonnet-20241022',
+          max_tokens: 1000,
+          messages: [
+            {
+              role: 'user',
+              content: prompt,
+            },
+          ],
+        },
+        {
+          headers: {
+            'x-api-key': apiKey,
+            'anthropic-version': '2023-06-01',
+            'content-type': 'application/json',
+          },
+          timeout: 30000,
+        }
+      );
+
+      generatedText = response.data.content[0].text;
+      model = 'claude-3-5-sonnet-20241022';
+    }
 
     // Parse subject and body from response
     const subjectMatch = generatedText.match(/SUBJECT:\s*(.+)/i);
@@ -157,13 +274,14 @@ const generateEmail = async (opportunity, opportunityType, yourDomain, keywords)
     const subject = subjectMatch ? subjectMatch[1].trim() : `Collaboration with ${opportunity.sourceDomain}`;
     const body = bodyMatch ? bodyMatch[1].trim() : generatedText;
 
-    console.log(`✅ Email generated successfully`);
+    console.log(`✅ Email generated successfully using ${model}`);
 
     return {
       subject,
       body,
       isGenerated: true,
-      model: 'claude-3-5-sonnet-20241022',
+      model,
+      provider: aiProvider,
     };
   } catch (error) {
     console.error('❌ Error generating email with Claude:', error.message);

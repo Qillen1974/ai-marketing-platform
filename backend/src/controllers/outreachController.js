@@ -47,12 +47,13 @@ const generateOutreachEmail = async (req, res) => {
       `📧 Generating ${messageType} email for ${opportunity.source_domain}...`
     );
 
-    // Generate email using Claude API or template
+    // Generate email using user's preferred AI provider
     const emailContent = await generateEmail(
       opportunity,
       opportunity.opportunity_type,
       website.domain,
-      keywords
+      keywords,
+      userId
     );
 
     res.json({
