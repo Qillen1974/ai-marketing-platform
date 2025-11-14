@@ -5,6 +5,7 @@ import api from '@/lib/api';
 import { useRouter } from 'next/navigation';
 import { useEffect, useState } from 'react';
 import toast from 'react-hot-toast';
+import QuotaExceededModal from '@/components/QuotaExceededModal';
 
 interface Website {
   id: number;
@@ -54,6 +55,13 @@ export default function WebsiteDetailsPage({
   const [newKeyword, setNewKeyword] = useState('');
   const [addingKeyword, setAddingKeyword] = useState(false);
   const [loadingSuggestions, setLoadingSuggestions] = useState(false);
+  const [quotaExceeded, setQuotaExceeded] = useState<{
+    isOpen: boolean;
+    service?: 'audit' | 'backlink_discovery' | 'email_sent';
+    quotaUsed?: number;
+    quotaLimit?: number;
+    message?: string;
+  }>({ isOpen: false });
 
   useEffect(() => {
     if (!token) {
@@ -113,7 +121,18 @@ export default function WebsiteDetailsPage({
         console.error('Failed to reload keywords after audit');
       }
     } catch (error: any) {
-      toast.error(error.response?.data?.error || 'Failed to run audit');
+      // Check if it's a quota exceeded error
+      if (error.response?.status === 429) {
+        setQuotaExceeded({
+          isOpen: true,
+          service: 'audit',
+          quotaUsed: error.response?.data?.quotaUsed,
+          quotaLimit: error.response?.data?.quotaLimit,
+          message: error.response?.data?.message,
+        });
+      } else {
+        toast.error(error.response?.data?.error || 'Failed to run audit');
+      }
     } finally {
       setRunningAudit(false);
     }
@@ -450,6 +469,18 @@ export default function WebsiteDetailsPage({
           )}
         </div>
         </div>
+      )}
+
+      {/* Quota Exceeded Modal */}
+      {quotaExceeded.service && (
+        <QuotaExceededModal
+          isOpen={quotaExceeded.isOpen}
+          onClose={() => setQuotaExceeded({ isOpen: false })}
+          service={quotaExceeded.service}
+          quotaUsed={quotaExceeded.quotaUsed || 0}
+          quotaLimit={quotaExceeded.quotaLimit || 0}
+          message={quotaExceeded.message}
+        />
       )}
     </div>
   );
