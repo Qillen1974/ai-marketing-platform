@@ -8,6 +8,8 @@ const runAudit = async (req, res) => {
     const userId = req.user.userId;
     const { websiteId } = req.params;
 
+    console.log(`\n🔍 AUDIT REQUEST START - User: ${userId}, Website: ${websiteId}`);
+
     // Verify website ownership
     const websiteResult = await pool.query(
       'SELECT domain, target_keywords FROM websites WHERE id = $1 AND user_id = $2',
@@ -15,6 +17,7 @@ const runAudit = async (req, res) => {
     );
 
     if (websiteResult.rows.length === 0) {
+      console.error(`❌ Website ${websiteId} not found for user ${userId}`);
       return res.status(404).json({ error: 'Website not found' });
     }
 
@@ -27,6 +30,7 @@ const runAudit = async (req, res) => {
     );
 
     if (userResult.rows.length === 0) {
+      console.error(`❌ User ${userId} not found in database`);
       return res.status(404).json({ error: 'User not found' });
     }
 
@@ -35,7 +39,10 @@ const runAudit = async (req, res) => {
 
     // Check if user has audit quota remaining
     const auditQuota = await checkLimit(userId, 'audit', user.plan);
+    console.log(`📊 Quota Check Result:`, auditQuota);
+
     if (auditQuota.hasExceeded && !auditQuota.isUnlimited) {
+      console.error(`❌ QUOTA EXCEEDED for user ${userId}: ${auditQuota.currentUsage}/${auditQuota.limit}`);
       return res.status(429).json({
         error: 'Monthly audit quota exceeded',
         quotaUsed: auditQuota.currentUsage,
@@ -44,6 +51,8 @@ const runAudit = async (req, res) => {
         message: 'You have exceeded your monthly audit limit. Upgrade your plan or provide your own Google PageSpeed API key.',
       });
     }
+
+    console.log(`✅ Quota check passed. Proceeding with audit...`);
 
     // Perform audit (includes keyword research via performSEOAudit)
     console.log(`🔍 Starting audit process for website ID: ${websiteId}, domain: ${website.domain}`);
