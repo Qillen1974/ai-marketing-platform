@@ -130,6 +130,8 @@ BODY: [email body]`,
  */
 const generateEmail = async (opportunity, opportunityType, yourDomain, keywords, userId) => {
   try {
+    console.log(`\n📧 EMAIL GENERATION START - User: ${userId}, Opportunity Type: ${opportunityType}`);
+
     // Get user's preferred AI provider and API key
     let aiProvider = 'claude'; // default
     let apiKey = process.env.ANTHROPIC_API_KEY; // fallback to env variable
@@ -142,8 +144,13 @@ const generateEmail = async (opportunity, opportunityType, yourDomain, keywords,
           [userId]
         );
 
+        console.log(`📊 Settings query result:`, settingsResult.rows);
+
         if (settingsResult.rows.length > 0) {
           aiProvider = settingsResult.rows[0].preferred_ai_provider || 'claude';
+          console.log(`🎯 Preferred AI provider: ${aiProvider}`);
+        } else {
+          console.warn(`⚠️  No settings found for user ${userId}, using default provider: claude`);
         }
 
         // Get user's API key for preferred provider
@@ -152,11 +159,19 @@ const generateEmail = async (opportunity, opportunityType, yourDomain, keywords,
           [userId, aiProvider]
         );
 
+        console.log(`🔐 API key lookup - Provider: ${aiProvider}, Found: ${keyResult.rows.length > 0}`);
+
         if (keyResult.rows.length > 0) {
           apiKey = decryptApiKey(keyResult.rows[0].encrypted_key);
           console.log(`🔑 Using user's ${aiProvider.toUpperCase()} API key`);
         } else {
           console.warn(`⚠️  No ${aiProvider} API key found for user, falling back to template`);
+          console.warn(`⚠️  Available providers in DB for user ${userId}:`);
+          const allKeysResult = await pool.query(
+            `SELECT provider FROM user_api_keys WHERE user_id = $1`,
+            [userId]
+          );
+          console.warn(`⚠️  Found keys for providers:`, allKeysResult.rows.map(r => r.provider));
           return generateTemplateEmail(opportunity, opportunityType, yourDomain, keywords);
         }
       } catch (dbError) {
@@ -284,7 +299,9 @@ const generateEmail = async (opportunity, opportunityType, yourDomain, keywords,
       provider: aiProvider,
     };
   } catch (error) {
-    console.error('❌ Error generating email with Claude:', error.message);
+    console.error('❌ Error generating email:', error.message);
+    console.error('❌ Full error:', error);
+    console.error('❌ Provider that failed:', aiProvider);
     // Fall back to template email
     return generateTemplateEmail(opportunity, opportunityType, yourDomain, keywords);
   }
