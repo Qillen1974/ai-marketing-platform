@@ -12,6 +12,8 @@ const outreachRoutes = require('./routes/outreachRoutes');
 const monitoringRoutes = require('./routes/monitoringRoutes');
 const settingsRoutes = require('./routes/settingsRoutes');
 const quotaRoutes = require('./routes/quotaRoutes');
+const adminAuthRoutes = require('./routes/adminAuthRoutes');
+const adminUsersRoutes = require('./routes/adminUsersRoutes');
 
 const app = express();
 const PORT = process.env.PORT || 5000;
@@ -59,6 +61,10 @@ app.use('/api/outreach', outreachRoutes);
 app.use('/api/monitoring', monitoringRoutes);
 app.use('/api/settings', settingsRoutes);
 app.use('/api/quota', quotaRoutes);
+
+// Admin routes
+app.use('/api/admin/auth', adminAuthRoutes);
+app.use('/api/admin', adminUsersRoutes);
 
 // Health check endpoint
 app.get('/health', (req, res) => {

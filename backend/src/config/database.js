@@ -21,6 +21,7 @@ const initDatabase = async () => {
         full_name VARCHAR(255),
         company_name VARCHAR(255),
         plan VARCHAR(50) DEFAULT 'free',
+        role VARCHAR(50) DEFAULT 'user',
         stripe_customer_id VARCHAR(255),
         subscription_end_date TIMESTAMP,
         api_quota_monthly INTEGER DEFAULT 1000,
