@@ -24,6 +24,7 @@ interface Opportunity {
 interface FilterOptions {
   status: string;
   type: string;
+  difficulty: string;
 }
 
 const statusColors: { [key: string]: string } = {
@@ -55,6 +56,7 @@ export default function OpportunitiesPage({
   const [filters, setFilters] = useState<FilterOptions>({
     status: '',
     type: '',
+    difficulty: '',
   });
   const [selectedOpportunity, setSelectedOpportunity] = useState<Opportunity | null>(null);
   const [showDetails, setShowDetails] = useState(false);
@@ -77,6 +79,7 @@ export default function OpportunitiesPage({
       const params = new URLSearchParams();
       if (filters.status) params.append('status', filters.status);
       if (filters.type) params.append('type', filters.type);
+      if (filters.difficulty) params.append('difficulty', filters.difficulty);
 
       const response = await api.get(`/backlinks/${websiteId}/opportunities?${params.toString()}`);
       setOpportunities(response.data.opportunities);
@@ -163,7 +166,7 @@ export default function OpportunitiesPage({
       {/* Filters */}
       <div className="bg-white rounded-lg shadow p-6 mb-8">
         <h2 className="text-lg font-bold mb-4">Filters</h2>
-        <div className="grid md:grid-cols-2 gap-4">
+        <div className="grid md:grid-cols-3 gap-4">
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-1">Status</label>
             <select
@@ -192,6 +195,20 @@ export default function OpportunitiesPage({
               <option value="broken_link">Broken Link</option>
               <option value="resource_page">Resource Page</option>
               <option value="directory">Directory</option>
+            </select>
+          </div>
+
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">Difficulty</label>
+            <select
+              value={filters.difficulty}
+              onChange={(e) => setFilters({ ...filters, difficulty: e.target.value })}
+              className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
+            >
+              <option value="">All Difficulties</option>
+              <option value="easy">Easy (0-35)</option>
+              <option value="medium">Medium (36-65)</option>
+              <option value="difficult">Difficult (66-100)</option>
             </select>
           </div>
         </div>

@@ -152,7 +152,7 @@ const getOpportunities = async (req, res) => {
   try {
     const userId = req.user.userId;
     const { websiteId } = req.params;
-    const { status, type, limit = 50, offset = 0 } = req.query;
+    const { status, type, difficulty, limit = 50, offset = 0 } = req.query;
 
     // Verify website ownership
     const websiteResult = await pool.query(
@@ -185,6 +185,23 @@ const getOpportunities = async (req, res) => {
       query += ` AND opportunity_type = $${paramIndex}`;
       params.push(type);
       paramIndex++;
+    }
+
+    // Handle difficulty filter
+    if (difficulty) {
+      if (difficulty === 'easy') {
+        query += ` AND difficulty_score <= $${paramIndex}`;
+        params.push(35);
+        paramIndex++;
+      } else if (difficulty === 'medium') {
+        query += ` AND difficulty_score BETWEEN $${paramIndex} AND $${paramIndex + 1}`;
+        params.push(36, 65);
+        paramIndex += 2;
+      } else if (difficulty === 'difficult') {
+        query += ` AND difficulty_score >= $${paramIndex}`;
+        params.push(66);
+        paramIndex++;
+      }
     }
 
     query += ` ORDER BY domain_authority DESC LIMIT $${paramIndex} OFFSET $${paramIndex + 1}`;
