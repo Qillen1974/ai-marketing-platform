@@ -152,10 +152,10 @@ const getUserUsageWithLimits = async (userId, userPlan = 'free') => {
       plan: userPlan,
       audits: {
         used: monthlyUsage.audit,
-        limit: planLimits.audits,
-        remaining: Math.max(0, planLimits.audits - monthlyUsage.audit),
-        percentage: Math.round((monthlyUsage.audit / planLimits.audits) * 100),
-        isUnlimited: planLimits.audits === Infinity,
+        limit: planLimits.audit,
+        remaining: Math.max(0, planLimits.audit - monthlyUsage.audit),
+        percentage: Math.round((monthlyUsage.audit / planLimits.audit) * 100),
+        isUnlimited: planLimits.audit === Infinity,
       },
       backlink_discovery: {
         used: monthlyUsage.backlink_discovery,
