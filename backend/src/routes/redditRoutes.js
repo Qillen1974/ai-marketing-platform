@@ -7,7 +7,7 @@ const {
   logParticipation,
   getParticipations,
 } = require('../controllers/redditController');
-const authMiddleware = require('../middlewares/authMiddleware');
+const { authMiddleware } = require('../middleware/auth');
 
 // All routes require authentication
 router.use(authMiddleware);
