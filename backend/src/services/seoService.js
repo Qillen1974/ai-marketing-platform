@@ -253,7 +253,7 @@ const getKeywordResearch = async (domain, targetKeywords) => {
       competitorCount: metrics.searchResults,
       cpc: parseFloat(metrics.estimatedCPC),
       trend: ['up', 'down', 'stable'][Math.floor(Math.random() * 3)],
-      currentPosition: Math.floor(Math.random() * 50) + 1,
+      currentPosition: null, // Real positions come from ranking checks via Serper API
       // Additional metrics from Serper
       topResultsCount: metrics.topResults.length,
       hasAnswerBox: metrics.answerBox,
