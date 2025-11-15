@@ -1,6 +1,7 @@
 const axios = require('axios');
 const { getGooglePageSpeedMetrics } = require('./googleService');
 const { getMultipleKeywordMetrics } = require('./serperService');
+const { crawlWebsite } = require('./crawlerService');
 
 // Common English stop words to exclude from keyword suggestions
 const STOP_WORDS = new Set([
@@ -26,16 +27,22 @@ const performSEOAudit = async (domain, targetKeywords = null) => {
     console.log('🔍 Getting keyword research data during audit...');
     const keywordData = await getKeywordResearch(domain, targetKeywords);
 
-    // Combine Google metrics with keyword data, issues and recommendations
+    // Crawl website for real SEO issues
+    console.log('🕷️ Crawling website to detect real SEO issues...');
+    const crawlData = await crawlWebsite(domain);
+
+    // Combine Google metrics with keyword data, real crawl issues and recommendations
     const auditData = {
       // Real Google metrics
       ...googleMetrics,
       // Real keyword data from Serper (properly formatted)
       keywordData: keywordData,
-      // Mock issues (will be replaced with real analysis in future)
-      issues: generateMockIssues(),
-      // Mock recommendations (will be replaced with AI recommendations)
-      recommendations: generateMockRecommendations(),
+      // REAL issues from website crawl (not mocked anymore!)
+      issues: crawlData.issues,
+      // Real recommendations based on actual issues
+      recommendations: generateRecommendationsFromCrawl(crawlData),
+      // Crawl statistics
+      crawlStats: crawlData.stats,
     };
 
     return auditData;
@@ -86,6 +93,109 @@ const generateMockIssues = () => {
   ];
 
   return issues.slice(0, Math.floor(Math.random() * 4) + 3);
+};
+
+const generateRecommendationsFromCrawl = (crawlData) => {
+  const recommendations = [];
+
+  // Recommendation 1: Fix missing meta descriptions
+  if (crawlData.stats.pagesWithMissingMeta > 0) {
+    recommendations.push({
+      category: 'On-Page SEO',
+      priority: 'high',
+      recommendation: `Add meta descriptions to ${crawlData.stats.pagesWithMissingMeta} pages`,
+      impact: 'Can improve click-through rate by 5-10%',
+      actionItems: [
+        'Write unique meta descriptions for each page',
+        'Keep them between 50-160 characters',
+        'Include target keywords naturally',
+        'Make them compelling to encourage clicks',
+      ],
+    });
+  }
+
+  // Recommendation 2: Fix missing H1 tags
+  if (crawlData.stats.pagesWithMissingH1 > 0) {
+    recommendations.push({
+      category: 'Technical SEO',
+      priority: 'high',
+      recommendation: `Add H1 tags to ${crawlData.stats.pagesWithMissingH1} pages`,
+      impact: 'Helps search engines understand page structure',
+      actionItems: [
+        'Add one H1 tag per page',
+        'Make it descriptive and keyword-rich',
+        'Use H2-H6 for subheadings',
+      ],
+    });
+  }
+
+  // Recommendation 3: Add alt tags to images
+  const totalImages = crawlData.pages.reduce((acc, p) => acc + p.images.length, 0);
+  const imagesWithoutAlt = crawlData.pages.reduce((acc, p) => acc + p.images.filter((img) => !img.hasAlt).length, 0);
+  if (imagesWithoutAlt > 0) {
+    recommendations.push({
+      category: 'Image Optimization',
+      priority: 'medium',
+      recommendation: `Add alt text to ${imagesWithoutAlt} images`,
+      impact: 'Improves image search visibility and accessibility',
+      actionItems: [
+        'Write descriptive alt text for all images',
+        'Include relevant keywords where natural',
+        'Aim for 5-10 words per alt text',
+        'Improves accessibility for screen readers',
+      ],
+    });
+  }
+
+  // Recommendation 4: Fix broken internal links
+  if (crawlData.stats.brokenInternalLinks > 0) {
+    recommendations.push({
+      category: 'Technical SEO',
+      priority: 'high',
+      recommendation: `Fix ${crawlData.stats.brokenInternalLinks} broken internal links`,
+      impact: 'Prevents wasted crawl budget and improves user experience',
+      actionItems: [
+        'Identify all broken links',
+        'Update links to correct URLs',
+        'Use 301 redirects if pages were moved',
+        'Monitor for future broken links',
+      ],
+    });
+  }
+
+  // Recommendation 5: Improve internal linking strategy
+  if (crawlData.stats.internalLinksCount > 0) {
+    recommendations.push({
+      category: 'Content Strategy',
+      priority: 'medium',
+      recommendation: 'Improve internal linking strategy',
+      impact: 'Distributes page authority and helps indexing',
+      actionItems: [
+        `Current internal links: ${crawlData.stats.internalLinksCount}`,
+        'Link from high-authority pages to important pages',
+        'Use descriptive anchor text',
+        'Create topic clusters with strategic linking',
+      ],
+    });
+  }
+
+  // Default recommendation if no issues
+  if (recommendations.length === 0) {
+    recommendations.push({
+      category: 'Maintenance',
+      priority: 'low',
+      recommendation: 'Keep monitoring your site for SEO issues',
+      impact: 'Ensures continued visibility in search results',
+      actionItems: [
+        'Run audits monthly',
+        'Monitor ranking changes weekly',
+        'Keep content fresh and updated',
+        'Build backlinks consistently',
+      ],
+    });
+  }
+
+  return recommendations;
 };
 
 const generateMockRecommendations = () => {
