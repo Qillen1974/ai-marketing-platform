@@ -7,7 +7,7 @@ const discoverOpportunities = async (req, res) => {
   try {
     const userId = req.user.userId;
     const { websiteId } = req.params;
-    const { campaignName, campaignType } = req.body;
+    const { campaignName, campaignType, selectedKeywords } = req.body;
 
     // Verify website ownership and get website data
     const websiteResult = await pool.query(
@@ -48,10 +48,18 @@ const discoverOpportunities = async (req, res) => {
 
     console.log(`🔗 Starting backlink discovery for website: ${website.domain}`);
 
-    // Parse target keywords
-    const keywords = website.target_keywords
-      ? website.target_keywords.split(',').map((k) => k.trim())
-      : ['digital marketing', 'seo', 'online marketing'];
+    // Use selected keywords if provided, otherwise use all target keywords
+    let keywords = [];
+    if (selectedKeywords && selectedKeywords.length > 0) {
+      keywords = selectedKeywords;
+      console.log(`📌 Using ${keywords.length} selected keywords for discovery`);
+    } else if (website.target_keywords) {
+      keywords = website.target_keywords.split(',').map((k) => k.trim());
+      console.log(`📌 Using all ${keywords.length} target keywords for discovery`);
+    } else {
+      keywords = ['digital marketing', 'seo', 'online marketing'];
+      console.log(`📌 Using default keywords for discovery`);
+    }
 
     // Discover opportunities
     const opportunities = await discoverBacklinkOpportunities(website.domain, keywords);

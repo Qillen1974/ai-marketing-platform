@@ -22,6 +22,14 @@ interface BacklinkStats {
   avgRelevance: number;
 }
 
+interface Keyword {
+  id: number;
+  keyword: string;
+  searchVolume: number;
+  difficulty: number;
+  currentPosition: number | null;
+}
+
 export default function BacklinksPage() {
   const token = useAuthStore((state) => state.token);
   const router = useRouter();
@@ -33,6 +41,9 @@ export default function BacklinksPage() {
   const [discovering, setDiscovering] = useState(false);
   const [campaignName, setCampaignName] = useState('');
   const [campaignType, setCampaignType] = useState('guest_posts');
+  const [keywords, setKeywords] = useState<Keyword[]>([]);
+  const [selectedKeywords, setSelectedKeywords] = useState<number[]>([]);
+  const [loadingKeywords, setLoadingKeywords] = useState(false);
 
   useEffect(() => {
     if (!token) {
@@ -67,9 +78,24 @@ export default function BacklinksPage() {
     }
   };
 
+  const loadKeywords = async (websiteId: number) => {
+    setLoadingKeywords(true);
+    try {
+      const response = await api.get(`/keywords/${websiteId}`);
+      setKeywords(response.data.keywords || []);
+      setSelectedKeywords([]); // Reset selection when loading new keywords
+    } catch (error: any) {
+      console.error('Failed to load keywords');
+      setKeywords([]);
+    } finally {
+      setLoadingKeywords(false);
+    }
+  };
+
   useEffect(() => {
     if (selectedWebsiteId) {
       loadStats(selectedWebsiteId);
+      loadKeywords(selectedWebsiteId);
     }
   }, [selectedWebsiteId]);
 
@@ -81,11 +107,17 @@ export default function BacklinksPage() {
       return;
     }
 
+    // If no keywords selected, use all keywords
+    const keywordsToUse = selectedKeywords.length > 0
+      ? keywords.filter((k) => selectedKeywords.includes(k.id)).map((k) => k.keyword)
+      : undefined;
+
     setDiscovering(true);
     try {
       const response = await api.post(`/backlinks/${selectedWebsiteId}/discover`, {
         campaignName: campaignName || `Campaign ${new Date().toLocaleDateString()}`,
         campaignType,
+        selectedKeywords: keywordsToUse,
       });
 
       toast.success(`Found ${response.data.opportunities.length} backlink opportunities!`);
@@ -210,6 +242,62 @@ export default function BacklinksPage() {
                   </select>
                 </div>
               </div>
+
+              {/* Keywords Selection */}
+              {loadingKeywords ? (
+                <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
+                  <p className="text-sm text-blue-700">Loading keywords...</p>
+                </div>
+              ) : keywords.length > 0 ? (
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-3">
+                    Select Keywords to Target
+                    <span className="text-gray-500 font-normal ml-2">
+                      (Leave unchecked to use all {keywords.length} keywords)
+                    </span>
+                  </label>
+                  <div className="bg-gray-50 border border-gray-300 rounded-lg p-4 max-h-48 overflow-y-auto">
+                    {keywords.map((keyword) => (
+                      <div key={keyword.id} className="flex items-center mb-3">
+                        <input
+                          type="checkbox"
+                          id={`keyword-${keyword.id}`}
+                          checked={selectedKeywords.includes(keyword.id)}
+                          onChange={(e) => {
+                            if (e.target.checked) {
+                              setSelectedKeywords([...selectedKeywords, keyword.id]);
+                            } else {
+                              setSelectedKeywords(selectedKeywords.filter((id) => id !== keyword.id));
+                            }
+                          }}
+                          className="w-4 h-4 rounded border-gray-300 text-blue-600 cursor-pointer"
+                        />
+                        <label
+                          htmlFor={`keyword-${keyword.id}`}
+                          className="ml-3 cursor-pointer flex-1 flex justify-between items-center"
+                        >
+                          <span className="text-sm font-medium text-gray-900">{keyword.keyword}</span>
+                          <span className="text-xs text-gray-500 ml-2">
+                            Vol: {keyword.searchVolume?.toLocaleString() || 0} | Diff: {keyword.difficulty || 0}
+                            {keyword.currentPosition && ` | Pos: #${keyword.currentPosition}`}
+                          </span>
+                        </label>
+                      </div>
+                    ))}
+                  </div>
+                  {selectedKeywords.length > 0 && (
+                    <p className="text-sm text-blue-600 mt-2">
+                      {selectedKeywords.length} of {keywords.length} keywords selected
+                    </p>
+                  )}
+                </div>
+              ) : (
+                <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-4">
+                  <p className="text-sm text-yellow-700">
+                    No keywords found. Run an SEO audit or add target keywords to your website first.
+                  </p>
+                </div>
+              )}
 
               <button
                 type="submit"
