@@ -228,7 +228,7 @@ const getRankingHistory = async (keywordId, days = 30) => {
 const getLatestRankings = async (websiteId) => {
   try {
     const result = await pool.query(
-      `SELECT
+      `SELECT DISTINCT ON (kr.keyword_id)
         kr.id,
         kr.keyword_id,
         k.keyword,
@@ -237,33 +237,39 @@ const getLatestRankings = async (websiteId) => {
         kr.is_ranking,
         kr.top_3_results,
         kr.search_date,
-        kr.created_at,
-        RANK() OVER (PARTITION BY kr.keyword_id ORDER BY kr.search_date DESC) as rn
+        kr.created_at
        FROM keyword_rankings kr
        JOIN keywords k ON kr.keyword_id = k.id
-       WHERE kr.website_id = $1 AND kr.current_position IS NOT NULL
-       ORDER BY kr.search_date DESC, k.search_volume DESC`,
+       WHERE kr.website_id = $1
+       ORDER BY kr.keyword_id, kr.search_date DESC`,
       [websiteId]
     );
 
-    // Group by keyword and get latest entry
-    const latestByKeyword = {};
-    for (const row of result.rows) {
-      if (!latestByKeyword[row.keyword_id]) {
-        latestByKeyword[row.keyword_id] = {
-          keywordId: row.keyword_id,
-          keyword: row.keyword,
-          currentPosition: row.current_position,
-          previousPosition: row.previous_position,
-          isRanking: row.is_ranking,
-          positionChange: row.previous_position && row.current_position ? row.previous_position - row.current_position : null,
-          topThree: row.top_3_results,
-          lastChecked: row.search_date,
-        };
+    // Transform the results
+    const rankings = result.rows.map((row) => {
+      // Parse top_3_results if it's a string
+      let topThree = row.top_3_results;
+      if (typeof topThree === 'string') {
+        try {
+          topThree = JSON.parse(topThree);
+        } catch (e) {
+          topThree = [];
+        }
       }
-    }
 
-    return Object.values(latestByKeyword);
+      return {
+        keywordId: row.keyword_id,
+        keyword: row.keyword,
+        currentPosition: row.current_position,
+        previousPosition: row.previous_position,
+        isRanking: row.is_ranking,
+        positionChange: row.previous_position && row.current_position ? row.previous_position - row.current_position : null,
+        topThree: topThree || [],
+        lastChecked: row.search_date,
+      };
+    });
+
+    return rankings;
   } catch (error) {
     console.error('Error getting latest rankings:', error);
     return [];
@@ -277,17 +283,17 @@ const getLatestRankings = async (websiteId) => {
  */
 const getRankingMetrics = async (websiteId) => {
   try {
-    // Get latest rankings
+    // Get latest rankings for each keyword
     const result = await pool.query(
       `SELECT
-        COUNT(*) as total_keywords_tracked,
-        COUNT(CASE WHEN current_position IS NOT NULL THEN 1 END) as keywords_ranking,
-        COUNT(CASE WHEN current_position <= 10 THEN 1 END) as top_10_keywords,
-        COUNT(CASE WHEN current_position <= 3 THEN 1 END) as top_3_keywords,
+        COUNT(DISTINCT keyword_id) as total_keywords_tracked,
+        COUNT(CASE WHEN current_position IS NOT NULL AND current_position <= 100 THEN 1 END) as keywords_ranking,
+        COUNT(CASE WHEN current_position IS NOT NULL AND current_position <= 10 THEN 1 END) as top_10_keywords,
+        COUNT(CASE WHEN current_position IS NOT NULL AND current_position <= 3 THEN 1 END) as top_3_keywords,
         AVG(CASE WHEN current_position IS NOT NULL THEN current_position END) as avg_position,
-        MIN(current_position) as best_position,
-        MAX(current_position) as worst_position,
-        COUNT(CASE WHEN previous_position IS NOT NULL AND current_position < previous_position THEN 1 END) as improved_keywords
+        MIN(CASE WHEN current_position IS NOT NULL THEN current_position END) as best_position,
+        MAX(CASE WHEN current_position IS NOT NULL THEN current_position END) as worst_position,
+        COUNT(CASE WHEN previous_position IS NOT NULL AND current_position IS NOT NULL AND current_position < previous_position THEN 1 END) as improved_keywords
        FROM (
          SELECT DISTINCT ON (keyword_id) *
          FROM keyword_rankings
@@ -305,8 +311,8 @@ const getRankingMetrics = async (websiteId) => {
       top10Keywords: parseInt(metrics.top_10_keywords) || 0,
       top3Keywords: parseInt(metrics.top_3_keywords) || 0,
       averagePosition: metrics.avg_position ? Math.round(metrics.avg_position * 10) / 10 : null,
-      bestPosition: metrics.best_position || null,
-      worstPosition: metrics.worst_position || null,
+      bestPosition: metrics.best_position ? parseInt(metrics.best_position) : null,
+      worstPosition: metrics.worst_position ? parseInt(metrics.worst_position) : null,
       improvedKeywords: parseInt(metrics.improved_keywords) || 0,
     };
   } catch (error) {
