@@ -94,6 +94,12 @@ const discoverOpportunities = async (req, res) => {
             page_authority, spam_score, opportunity_type, relevance_score,
             difficulty_score, contact_email, contact_method, status
           ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13)
+          ON CONFLICT (website_id, source_domain) DO UPDATE SET
+            opportunity_type = EXCLUDED.opportunity_type,
+            relevance_score = EXCLUDED.relevance_score,
+            difficulty_score = EXCLUDED.difficulty_score,
+            campaign_id = CASE WHEN backlink_opportunities.campaign_id IS NULL THEN EXCLUDED.campaign_id ELSE backlink_opportunities.campaign_id END,
+            updated_at = NOW()
           RETURNING id, source_url, source_domain, domain_authority, opportunity_type,
                     relevance_score, difficulty_score, status`,
           [
@@ -124,12 +130,8 @@ const discoverOpportunities = async (req, res) => {
           status: result.rows[0].status,
         });
       } catch (insertError) {
-        // Skip if duplicate (already exists)
-        if (insertError.code === '23505') {
-          console.log(`Skipping duplicate opportunity: ${opp.source_domain}`);
-        } else {
-          throw insertError;
-        }
+        console.error(`Error saving opportunity ${opp.source_domain}:`, insertError.message);
+        throw insertError;
       }
     }
 

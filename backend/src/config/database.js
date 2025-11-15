@@ -134,7 +134,7 @@ const initDatabase = async () => {
         notes TEXT,
         created_at TIMESTAMP DEFAULT NOW(),
         updated_at TIMESTAMP DEFAULT NOW(),
-        UNIQUE(website_id, source_domain)
+        UNIQUE(website_id, source_domain, opportunity_type)
       );
 
       CREATE INDEX IF NOT EXISTS idx_backlink_campaigns_website_id ON backlink_campaigns(website_id);
