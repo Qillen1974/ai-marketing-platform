@@ -11,11 +11,15 @@ const SERPER_API_URL = 'https://google.serper.dev/search';
  * Analyzes top-ranking sites for the target keywords to find potential link sources
  * @param {string} domain - Website domain to find backlinks for
  * @param {array} keywords - Keywords to analyze for opportunities
+ * @param {string} opportunityType - Filter by opportunity type (guest_posts, broken_links, resource_pages, directories, mixed)
  * @returns {array} Array of backlink opportunities
  */
-const discoverBacklinkOpportunities = async (domain, keywords = []) => {
+const discoverBacklinkOpportunities = async (domain, keywords = [], opportunityType = 'mixed') => {
   try {
     console.log(`🔗 Discovering backlink opportunities for ${domain}...`);
+    if (opportunityType !== 'mixed') {
+      console.log(`📌 Filtering for: ${opportunityType}`);
+    }
 
     const opportunities = [];
 
@@ -34,8 +38,23 @@ const discoverBacklinkOpportunities = async (domain, keywords = []) => {
     const uniqueOpportunities = deduplicateOpportunities(opportunities);
     const scoredOpportunities = scoreOpportunities(uniqueOpportunities);
 
-    console.log(`✅ Found ${scoredOpportunities.length} backlink opportunities`);
-    return scoredOpportunities.slice(0, 15); // Return top 15
+    // Filter by opportunity type if specified
+    let filteredOpportunities = scoredOpportunities;
+    if (opportunityType && opportunityType !== 'mixed') {
+      // Map campaign type names to opportunity types
+      const typeMap = {
+        'guest_posts': 'guest_post',
+        'broken_links': 'broken_link',
+        'resource_pages': 'resource_page',
+        'directories': 'directory'
+      };
+      const targetType = typeMap[opportunityType] || opportunityType;
+      filteredOpportunities = scoredOpportunities.filter(opp => opp.opportunity_type === targetType);
+      console.log(`🔍 Filtered to ${filteredOpportunities.length} ${targetType} opportunities`);
+    }
+
+    console.log(`✅ Found ${filteredOpportunities.length} backlink opportunities`);
+    return filteredOpportunities.slice(0, 15); // Return top 15
   } catch (error) {
     console.error('❌ Error discovering backlink opportunities:', error.message);
     // Return default mock opportunities as fallback
@@ -108,14 +127,21 @@ const findRankingSitesForKeyword = async (keyword) => {
  */
 const determineOpportunityType = (url) => {
   const urlLower = url.toLowerCase();
-  if (urlLower.includes('resource') || urlLower.includes('guide') || urlLower.includes('tools')) {
-    return 'resource_page';
-  } else if (urlLower.includes('guest') || urlLower.includes('contribute')) {
+
+  // Check for specific opportunity types
+  if (urlLower.includes('guest') || urlLower.includes('contribute') || urlLower.includes('author') || urlLower.includes('write')) {
     return 'guest_post';
-  } else if (urlLower.includes('directory') || urlLower.includes('listing')) {
+  } else if (urlLower.includes('directory') || urlLower.includes('listing') || (urlLower.includes('submit') && urlLower.includes('directory'))) {
     return 'directory';
+  } else if (urlLower.includes('broken') || urlLower.includes('404') || urlLower.includes('404.html')) {
+    return 'broken_link';
+  } else if (urlLower.includes('resource') || urlLower.includes('guide') || urlLower.includes('tools') || urlLower.includes('hub') || urlLower.includes('library')) {
+    return 'resource_page';
   }
-  return 'resource_page'; // Default to resource page
+
+  // Distribute defaults randomly to get a mix of types
+  const types = ['resource_page', 'guest_post', 'directory'];
+  return types[Math.floor(Math.random() * types.length)];
 };
 
 /**

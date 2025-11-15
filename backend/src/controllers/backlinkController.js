@@ -62,7 +62,7 @@ const discoverOpportunities = async (req, res) => {
     }
 
     // Discover opportunities
-    const opportunities = await discoverBacklinkOpportunities(website.domain, keywords);
+    const opportunities = await discoverBacklinkOpportunities(website.domain, keywords, campaignType);
 
     if (opportunities.length === 0) {
       return res.status(200).json({
