@@ -9,6 +9,7 @@ const discoverCommunities = async (req, res) => {
   try {
     const userId = req.user.userId;
     const { websiteId } = req.params;
+    const { selectedKeywords } = req.body;
 
     // Verify website ownership
     const websiteResult = await pool.query(
@@ -23,10 +24,18 @@ const discoverCommunities = async (req, res) => {
     const website = websiteResult.rows[0];
     console.log(`🔗 Starting Reddit community discovery for website: ${websiteId}`);
 
-    // Parse target keywords
-    const keywords = website.target_keywords
-      ? website.target_keywords.split(',').map((k) => k.trim()).slice(0, 5)
-      : ['digital marketing', 'seo', 'online marketing'];
+    // Use selected keywords if provided, otherwise use all target keywords
+    let keywords = [];
+    if (selectedKeywords && selectedKeywords.length > 0) {
+      keywords = selectedKeywords;
+      console.log(`📌 Using ${keywords.length} selected keywords for Reddit discovery`);
+    } else if (website.target_keywords) {
+      keywords = website.target_keywords.split(',').map((k) => k.trim());
+      console.log(`📌 Using all ${keywords.length} target keywords for Reddit discovery`);
+    } else {
+      keywords = ['digital marketing', 'seo', 'online marketing'];
+      console.log(`📌 Using default keywords for Reddit discovery`);
+    }
 
     // Discover communities
     const communities = await discoverRedditCommunities(keywords);
