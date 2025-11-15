@@ -205,6 +205,56 @@ const initDatabase = async () => {
 
       CREATE INDEX IF NOT EXISTS idx_usage_tracking_user_id ON usage_tracking(user_id);
       CREATE INDEX IF NOT EXISTS idx_usage_tracking_month ON usage_tracking(month_year);
+
+      CREATE TABLE IF NOT EXISTS reddit_communities (
+        id SERIAL PRIMARY KEY,
+        website_id INTEGER NOT NULL REFERENCES websites(id) ON DELETE CASCADE,
+        subreddit_name VARCHAR(255) NOT NULL,
+        display_name VARCHAR(255),
+        description TEXT,
+        subscribers INTEGER,
+        active_users INTEGER,
+        relevance_score INTEGER, -- 0-100 based on keyword match
+        posting_allowed BOOLEAN DEFAULT TRUE,
+        self_promotion_allowed BOOLEAN DEFAULT FALSE,
+        requires_karma INTEGER DEFAULT 0,
+        subreddit_age_days INTEGER,
+        avg_posts_per_day DECIMAL,
+        reddit_url VARCHAR(500),
+        reddit_icon_url VARCHAR(500),
+        community_type VARCHAR(50), -- 'general', 'niche', 'professional'
+        difficulty_to_post VARCHAR(50), -- 'easy', 'medium', 'difficult'
+        last_scanned TIMESTAMP DEFAULT NOW(),
+        tracked BOOLEAN DEFAULT FALSE,
+        notes TEXT,
+        created_at TIMESTAMP DEFAULT NOW(),
+        updated_at TIMESTAMP DEFAULT NOW(),
+        UNIQUE(website_id, subreddit_name)
+      );
+
+      CREATE TABLE IF NOT EXISTS reddit_participations (
+        id SERIAL PRIMARY KEY,
+        website_id INTEGER NOT NULL REFERENCES websites(id) ON DELETE CASCADE,
+        reddit_community_id INTEGER NOT NULL REFERENCES reddit_communities(id) ON DELETE CASCADE,
+        participation_type VARCHAR(50), -- 'comment', 'post', 'discussion', 'answer'
+        post_title VARCHAR(500),
+        post_url VARCHAR(500),
+        post_content TEXT,
+        reddit_post_id VARCHAR(255),
+        upvotes INTEGER DEFAULT 0,
+        comments_count INTEGER DEFAULT 0,
+        posted_date TIMESTAMP,
+        traffic_from_reddit INTEGER DEFAULT 0, -- Tracked clicks from Reddit
+        status VARCHAR(50) DEFAULT 'planned', -- 'planned', 'posted', 'archived', 'deleted'
+        notes TEXT,
+        created_at TIMESTAMP DEFAULT NOW(),
+        updated_at TIMESTAMP DEFAULT NOW()
+      );
+
+      CREATE INDEX IF NOT EXISTS idx_reddit_communities_website_id ON reddit_communities(website_id);
+      CREATE INDEX IF NOT EXISTS idx_reddit_communities_tracked ON reddit_communities(tracked);
+      CREATE INDEX IF NOT EXISTS idx_reddit_participations_website_id ON reddit_participations(website_id);
+      CREATE INDEX IF NOT EXISTS idx_reddit_participations_community_id ON reddit_participations(reddit_community_id);
     `);
     console.log('Database schema initialized successfully');
   } catch (error) {
