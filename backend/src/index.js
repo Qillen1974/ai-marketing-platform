@@ -15,6 +15,7 @@ const quotaRoutes = require('./routes/quotaRoutes');
 const adminAuthRoutes = require('./routes/adminAuthRoutes');
 const adminUsersRoutes = require('./routes/adminUsersRoutes');
 const redditRoutes = require('./routes/redditRoutes');
+const rankingRoutes = require('./routes/rankingRoutes');
 
 const app = express();
 const PORT = process.env.PORT || 5000;
@@ -69,6 +70,9 @@ app.use('/api/admin', adminUsersRoutes);
 
 // Reddit community routes
 app.use('/api/reddit', redditRoutes);
+
+// Ranking/SEO tracking routes
+app.use('/api/rankings', rankingRoutes);
 
 // Health check endpoint
 app.get('/health', (req, res) => {

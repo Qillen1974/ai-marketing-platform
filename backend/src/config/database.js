@@ -255,6 +255,37 @@ const initDatabase = async () => {
       CREATE INDEX IF NOT EXISTS idx_reddit_communities_tracked ON reddit_communities(tracked);
       CREATE INDEX IF NOT EXISTS idx_reddit_participations_website_id ON reddit_participations(website_id);
       CREATE INDEX IF NOT EXISTS idx_reddit_participations_community_id ON reddit_participations(reddit_community_id);
+
+      CREATE TABLE IF NOT EXISTS keyword_rankings (
+        id SERIAL PRIMARY KEY,
+        keyword_id INTEGER NOT NULL REFERENCES keywords(id) ON DELETE CASCADE,
+        website_id INTEGER NOT NULL REFERENCES websites(id) ON DELETE CASCADE,
+        current_position INTEGER, -- NULL if not ranking in top 100
+        previous_position INTEGER, -- NULL if first check
+        serp_data JSONB, -- Full Serper API response for this keyword
+        top_3_results JSONB, -- Top 3 ranking results for this keyword
+        search_date TIMESTAMP DEFAULT NOW(),
+        is_ranking BOOLEAN DEFAULT FALSE,
+        notes TEXT,
+        created_at TIMESTAMP DEFAULT NOW(),
+        UNIQUE(keyword_id, search_date)
+      );
+
+      CREATE TABLE IF NOT EXISTS ranking_history (
+        id SERIAL PRIMARY KEY,
+        keyword_id INTEGER NOT NULL REFERENCES keywords(id) ON DELETE CASCADE,
+        website_id INTEGER NOT NULL REFERENCES websites(id) ON DELETE CASCADE,
+        position INTEGER, -- Actual position on this date
+        is_ranking BOOLEAN DEFAULT FALSE,
+        check_date TIMESTAMP,
+        created_at TIMESTAMP DEFAULT NOW()
+      );
+
+      CREATE INDEX IF NOT EXISTS idx_keyword_rankings_keyword_id ON keyword_rankings(keyword_id);
+      CREATE INDEX IF NOT EXISTS idx_keyword_rankings_website_id ON keyword_rankings(website_id);
+      CREATE INDEX IF NOT EXISTS idx_keyword_rankings_search_date ON keyword_rankings(search_date);
+      CREATE INDEX IF NOT EXISTS idx_ranking_history_keyword_id ON ranking_history(keyword_id);
+      CREATE INDEX IF NOT EXISTS idx_ranking_history_check_date ON ranking_history(check_date);
     `);
     console.log('Database schema initialized successfully');
   } catch (error) {
