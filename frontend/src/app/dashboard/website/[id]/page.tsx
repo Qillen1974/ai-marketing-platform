@@ -94,7 +94,29 @@ export default function WebsiteDetailsPage({
       // Fetch keywords
       try {
         const keywordsRes = await api.get(`/keywords/${params.id}`);
-        setKeywords(keywordsRes.data.keywords);
+        let keywordsData = keywordsRes.data.keywords;
+
+        // Fetch latest rankings to update positions
+        try {
+          const rankingsRes = await api.get(`/rankings/${params.id}/latest`);
+          if (rankingsRes.data.rankings && rankingsRes.data.rankings.length > 0) {
+            // Create a map of keyword_id to ranking data
+            const rankingMap: { [key: number]: any } = {};
+            rankingsRes.data.rankings.forEach((ranking: any) => {
+              rankingMap[ranking.keywordId] = ranking;
+            });
+
+            // Update keywords with latest ranking positions
+            keywordsData = keywordsData.map((kw: any) => ({
+              ...kw,
+              currentPosition: rankingMap[kw.id]?.currentPosition ?? kw.currentPosition,
+            }));
+          }
+        } catch (error) {
+          console.error('Failed to fetch latest rankings, using cached positions');
+        }
+
+        setKeywords(keywordsData);
       } catch (error) {
         console.error('Failed to fetch keywords');
       }
@@ -116,7 +138,27 @@ export default function WebsiteDetailsPage({
       // Reload keywords after audit (they were just researched)
       try {
         const keywordsRes = await api.get(`/keywords/${params.id}`);
-        setKeywords(keywordsRes.data.keywords);
+        let keywordsData = keywordsRes.data.keywords;
+
+        // Also fetch latest rankings to show real positions
+        try {
+          const rankingsRes = await api.get(`/rankings/${params.id}/latest`);
+          if (rankingsRes.data.rankings && rankingsRes.data.rankings.length > 0) {
+            const rankingMap: { [key: number]: any } = {};
+            rankingsRes.data.rankings.forEach((ranking: any) => {
+              rankingMap[ranking.keywordId] = ranking;
+            });
+
+            keywordsData = keywordsData.map((kw: any) => ({
+              ...kw,
+              currentPosition: rankingMap[kw.id]?.currentPosition ?? kw.currentPosition,
+            }));
+          }
+        } catch (error) {
+          console.error('Failed to fetch rankings after audit');
+        }
+
+        setKeywords(keywordsData);
       } catch (error) {
         console.error('Failed to reload keywords after audit');
       }
