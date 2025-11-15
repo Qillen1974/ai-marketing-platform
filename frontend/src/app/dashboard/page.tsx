@@ -195,12 +195,24 @@ export default function DashboardPage() {
                         </p>
                       )}
                     </div>
-                    <div className="space-x-2">
+                    <div className="flex gap-2 flex-wrap justify-end">
                       <button
                         onClick={() => router.push(`/dashboard/website/${website.id}`)}
                         className="bg-blue-600 text-white px-4 py-2 rounded hover:bg-blue-700 text-sm"
                       >
-                        View
+                        Audit
+                      </button>
+                      <button
+                        onClick={() => router.push(`/dashboard/backlinks/${website.id}`)}
+                        className="bg-green-600 text-white px-4 py-2 rounded hover:bg-green-700 text-sm"
+                      >
+                        Backlinks
+                      </button>
+                      <button
+                        onClick={() => router.push(`/dashboard/reddit/${website.id}`)}
+                        className="bg-orange-600 text-white px-4 py-2 rounded hover:bg-orange-700 text-sm flex items-center gap-1"
+                      >
+                        🔗 Reddit
                       </button>
                       <button
                         onClick={() => handleDeleteWebsite(website.id)}
