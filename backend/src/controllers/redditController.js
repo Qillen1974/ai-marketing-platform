@@ -167,7 +167,7 @@ const getCommunities = async (req, res) => {
       selfPromotionAllowed: c.self_promotion_allowed,
       difficulty: c.difficulty_to_post,
       subredditAge: c.subreddit_age_days,
-      avgPostsPerDay: c.avg_posts_per_day,
+      avgPostsPerDay: parseFloat(c.avg_posts_per_day) || 0,
       redditUrl: c.reddit_url,
       redditIconUrl: c.reddit_icon_url,
       communityType: c.community_type,

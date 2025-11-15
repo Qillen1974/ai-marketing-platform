@@ -273,7 +273,7 @@ export default function RedditCommunitiesPage({
                 <div>
                   <p className="text-xs text-gray-600">Posts/Day</p>
                   <p className="text-lg font-bold text-gray-900">
-                    {community.avgPostsPerDay.toFixed(0)}
+                    {Number(community.avgPostsPerDay).toFixed(0)}
                   </p>
                 </div>
                 <div>
