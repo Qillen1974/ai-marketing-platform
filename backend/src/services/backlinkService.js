@@ -25,7 +25,7 @@ const discoverBacklinkOpportunities = async (domain, keywords = []) => {
 
     // 1. Find sites ranking for target keywords (potential link sources)
     console.log(`📊 Finding high-ranking sites for keywords: ${keywords.join(', ')}`);
-    for (const keyword of keywords.slice(0, 3)) {
+    for (const keyword of keywords) {
       const rankingSites = await findRankingSitesForKeyword(keyword);
       opportunities.push(...rankingSites);
     }

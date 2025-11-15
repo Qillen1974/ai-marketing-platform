@@ -50,7 +50,7 @@ const discoverOpportunities = async (req, res) => {
 
     // Parse target keywords
     const keywords = website.target_keywords
-      ? website.target_keywords.split(',').map((k) => k.trim()).slice(0, 5)
+      ? website.target_keywords.split(',').map((k) => k.trim())
       : ['digital marketing', 'seo', 'online marketing'];
 
     // Discover opportunities
