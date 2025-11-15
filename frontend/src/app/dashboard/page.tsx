@@ -203,6 +203,12 @@ export default function DashboardPage() {
                         Audit
                       </button>
                       <button
+                        onClick={() => router.push(`/dashboard/rankings/${website.id}`)}
+                        className="bg-indigo-600 text-white px-4 py-2 rounded hover:bg-indigo-700 text-sm flex items-center gap-1"
+                      >
+                        📊 Rankings
+                      </button>
+                      <button
                         onClick={() => router.push(`/dashboard/backlinks/${website.id}`)}
                         className="bg-green-600 text-white px-4 py-2 rounded hover:bg-green-700 text-sm"
                       >
