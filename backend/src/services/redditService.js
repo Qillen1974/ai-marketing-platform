@@ -365,6 +365,161 @@ const discoverRedditCommunities = async (keywords = []) => {
   }
 };
 
+/**
+ * Get recent threads from a subreddit (last 7 days, sorted by new)
+ * @param {string} subredditName - Name of subreddit (without /r/)
+ * @param {number} limit - Number of threads to fetch (default 50)
+ * @returns {array} Array of recent threads
+ */
+const getRecentThreads = async (subredditName, limit = 50) => {
+  try {
+    console.log(`🔍 Fetching recent threads from r/${subredditName}...`);
+
+    const response = await axios.get(`${REDDIT_API_BASE}/r/${subredditName}/new.json`, {
+      params: {
+        limit: Math.min(limit, 100), // Reddit API limit is 100 per request
+      },
+      headers: {
+        'User-Agent': 'AIMarketingPlatform/1.0',
+      },
+      timeout: 10000,
+    });
+
+    if (!response.data.data || !response.data.data.children) {
+      return [];
+    }
+
+    const now = Date.now();
+    const sevenDaysAgo = now - (7 * 24 * 60 * 60 * 1000);
+
+    // Filter for threads from last 7 days
+    const threads = response.data.data.children
+      .filter((child) => {
+        const postedTime = child.data.created_utc * 1000;
+        return postedTime > sevenDaysAgo;
+      })
+      .map((child) => {
+        const data = child.data;
+        return {
+          thread_id: data.id,
+          thread_title: data.title,
+          thread_url: `https://reddit.com${data.permalink}`,
+          author: data.author,
+          upvotes: data.ups || 0,
+          comments_count: data.num_comments || 0,
+          posted_date: new Date(data.created_utc * 1000),
+          is_self_post: data.is_self,
+          selftext: data.selftext || '',
+        };
+      });
+
+    console.log(`✅ Found ${threads.length} threads from last 7 days in r/${subredditName}`);
+    return threads;
+  } catch (error) {
+    console.error(`❌ Error getting threads from ${subredditName}:`, error.message);
+    return [];
+  }
+};
+
+/**
+ * Calculate thread relevance score based on keyword matches
+ * @param {string} threadTitle - Thread title
+ * @param {string} threadText - Thread content/selftext
+ * @param {array} keywords - User's keywords to match
+ * @returns {object} { relevanceScore: number, matchedKeywords: array }
+ */
+const calculateThreadRelevance = (threadTitle, threadText, keywords = []) => {
+  if (!keywords || keywords.length === 0) {
+    return { relevanceScore: 0, matchedKeywords: [] };
+  }
+
+  const titleLower = threadTitle.toLowerCase();
+  const textLower = (threadText || '').toLowerCase();
+  let matchCount = 0;
+  const matchedKeywords = [];
+
+  for (const keyword of keywords) {
+    const keywordLower = keyword.toLowerCase();
+
+    // Title match (higher weight)
+    if (titleLower.includes(keywordLower)) {
+      matchCount += 2;
+      if (!matchedKeywords.includes(keyword)) {
+        matchedKeywords.push(keyword);
+      }
+    }
+    // Content match (lower weight)
+    else if (textLower.includes(keywordLower)) {
+      matchCount += 1;
+      if (!matchedKeywords.includes(keyword)) {
+        matchedKeywords.push(keyword);
+      }
+    }
+  }
+
+  // Calculate relevance score (0-100)
+  // Max points: keywords.length * 2 (if all in title)
+  const maxPoints = keywords.length * 2;
+  const relevanceScore = Math.min(Math.round((matchCount / maxPoints) * 100), 100);
+
+  return { relevanceScore, matchedKeywords };
+};
+
+/**
+ * Discover relevant threads in tracked communities
+ * @param {string} subredditName - Subreddit to search
+ * @param {array} keywords - Keywords to match against thread titles
+ * @returns {array} Threads with relevance scores
+ */
+const discoverThreadsInCommunity = async (subredditName, keywords = []) => {
+  try {
+    console.log(`🔗 Discovering threads in r/${subredditName} for keywords: ${keywords.join(', ')}`);
+
+    // Get recent threads from the subreddit
+    const threads = await getRecentThreads(subredditName, 50);
+
+    if (threads.length === 0) {
+      console.log(`⚠️  No recent threads found in r/${subredditName}`);
+      return [];
+    }
+
+    // Calculate relevance for each thread
+    const threadsWithRelevance = threads
+      .map((thread) => {
+        const { relevanceScore, matchedKeywords } = calculateThreadRelevance(
+          thread.thread_title,
+          thread.selftext,
+          keywords
+        );
+
+        return {
+          ...thread,
+          relevance_score: relevanceScore,
+          keyword_matches: matchedKeywords,
+        };
+      })
+      // Filter out threads with no keyword matches
+      .filter((thread) => thread.relevance_score > 0)
+      // Sort by relevance and engagement
+      .sort((a, b) => {
+        // Primary: relevance score
+        if (a.relevance_score !== b.relevance_score) {
+          return b.relevance_score - a.relevance_score;
+        }
+        // Secondary: engagement (upvotes + comments)
+        const engagementA = a.upvotes + a.comments_count;
+        const engagementB = b.upvotes + b.comments_count;
+        return engagementB - engagementA;
+      });
+
+    console.log(`✅ Found ${threadsWithRelevance.length} relevant threads in r/${subredditName}`);
+    return threadsWithRelevance;
+  } catch (error) {
+    console.error(`❌ Error discovering threads in ${subredditName}:`, error.message);
+    return [];
+  }
+};
+
 module.exports = {
   getRedditToken,
   searchSubreddits,
@@ -374,4 +529,7 @@ module.exports = {
   calculateRelevanceScore,
   calculatePostingDifficulty,
   discoverRedditCommunities,
+  getRecentThreads,
+  calculateThreadRelevance,
+  discoverThreadsInCommunity,
 };

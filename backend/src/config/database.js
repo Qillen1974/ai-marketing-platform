@@ -286,6 +286,49 @@ const initDatabase = async () => {
       CREATE INDEX IF NOT EXISTS idx_keyword_rankings_search_date ON keyword_rankings(search_date);
       CREATE INDEX IF NOT EXISTS idx_ranking_history_keyword_id ON ranking_history(keyword_id);
       CREATE INDEX IF NOT EXISTS idx_ranking_history_check_date ON ranking_history(check_date);
+
+      CREATE TABLE IF NOT EXISTS reddit_threads (
+        id SERIAL PRIMARY KEY,
+        website_id INTEGER NOT NULL REFERENCES websites(id) ON DELETE CASCADE,
+        reddit_community_id INTEGER NOT NULL REFERENCES reddit_communities(id) ON DELETE CASCADE,
+        thread_id VARCHAR(255) NOT NULL,
+        thread_title VARCHAR(500) NOT NULL,
+        thread_url VARCHAR(500),
+        author VARCHAR(255),
+        upvotes INTEGER DEFAULT 0,
+        comments_count INTEGER DEFAULT 0,
+        posted_date TIMESTAMP,
+        relevance_score INTEGER, -- 0-100 based on keyword match
+        keyword_matches TEXT[], -- Array of matched keywords
+        created_at TIMESTAMP DEFAULT NOW(),
+        last_checked TIMESTAMP,
+        UNIQUE(website_id, reddit_community_id, thread_id)
+      );
+
+      CREATE TABLE IF NOT EXISTS reddit_thread_engagements (
+        id SERIAL PRIMARY KEY,
+        website_id INTEGER NOT NULL REFERENCES websites(id) ON DELETE CASCADE,
+        reddit_thread_id INTEGER NOT NULL REFERENCES reddit_threads(id) ON DELETE CASCADE,
+        engagement_type VARCHAR(50), -- 'comment', 'post', 'reply'
+        ai_generated_message TEXT,
+        user_custom_message TEXT,
+        message_sent TEXT, -- Final message that was sent
+        posted_date TIMESTAMP,
+        status VARCHAR(50) DEFAULT 'draft', -- 'draft', 'reviewed', 'sent', 'deleted'
+        upvotes INTEGER DEFAULT 0,
+        replies_count INTEGER DEFAULT 0,
+        traffic_from_reddit INTEGER DEFAULT 0,
+        notes TEXT,
+        created_at TIMESTAMP DEFAULT NOW(),
+        updated_at TIMESTAMP DEFAULT NOW()
+      );
+
+      CREATE INDEX IF NOT EXISTS idx_reddit_threads_website_id ON reddit_threads(website_id);
+      CREATE INDEX IF NOT EXISTS idx_reddit_threads_community_id ON reddit_threads(reddit_community_id);
+      CREATE INDEX IF NOT EXISTS idx_reddit_threads_relevance ON reddit_threads(relevance_score);
+      CREATE INDEX IF NOT EXISTS idx_reddit_thread_engagements_website_id ON reddit_thread_engagements(website_id);
+      CREATE INDEX IF NOT EXISTS idx_reddit_thread_engagements_thread_id ON reddit_thread_engagements(reddit_thread_id);
+      CREATE INDEX IF NOT EXISTS idx_reddit_thread_engagements_status ON reddit_thread_engagements(status);
     `);
     console.log('Database schema initialized successfully');
   } catch (error) {

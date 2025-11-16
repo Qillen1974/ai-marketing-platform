@@ -1,5 +1,5 @@
 const { pool } = require('../config/database');
-const { discoverRedditCommunities, getSubredditInfo } = require('../services/redditService');
+const { discoverRedditCommunities, getSubredditInfo, discoverThreadsInCommunity } = require('../services/redditService');
 
 /**
  * Discover Reddit communities for a website
@@ -376,10 +376,197 @@ const getParticipations = async (req, res) => {
   }
 };
 
+/**
+ * Discover threads in a specific community
+ * POST /api/reddit/:websiteId/communities/:communityId/threads
+ */
+const discoverThreads = async (req, res) => {
+  try {
+    const userId = req.user.userId;
+    const { websiteId, communityId } = req.params;
+
+    // Verify website ownership
+    const websiteResult = await pool.query(
+      'SELECT id, target_keywords FROM websites WHERE id = $1 AND user_id = $2',
+      [websiteId, userId]
+    );
+
+    if (websiteResult.rows.length === 0) {
+      return res.status(404).json({ error: 'Website not found' });
+    }
+
+    const website = websiteResult.rows[0];
+
+    // Verify community ownership and get community name
+    const communityResult = await pool.query(
+      'SELECT id, subreddit_name FROM reddit_communities WHERE id = $1 AND website_id = $2',
+      [communityId, websiteId]
+    );
+
+    if (communityResult.rows.length === 0) {
+      return res.status(404).json({ error: 'Community not found' });
+    }
+
+    const community = communityResult.rows[0];
+    console.log(`🔗 Discovering threads in r/${community.subreddit_name}`);
+
+    // Get keywords to filter threads
+    const keywords = website.target_keywords
+      ? website.target_keywords.split(',').map((k) => k.trim())
+      : ['digital marketing', 'seo', 'online marketing'];
+
+    // Discover threads in the community
+    const threads = await discoverThreadsInCommunity(community.subreddit_name, keywords);
+
+    if (threads.length === 0) {
+      return res.status(200).json({
+        message: 'No relevant threads found in this community',
+        threads: [],
+      });
+    }
+
+    // Save threads to database
+    const savedThreads = [];
+    for (const thread of threads) {
+      try {
+        const result = await pool.query(
+          `INSERT INTO reddit_threads (
+            website_id, reddit_community_id, thread_id, thread_title,
+            thread_url, author, upvotes, comments_count, posted_date,
+            relevance_score, keyword_matches
+          ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)
+          ON CONFLICT (website_id, reddit_community_id, thread_id)
+          DO UPDATE SET
+            upvotes = EXCLUDED.upvotes,
+            comments_count = EXCLUDED.comments_count,
+            relevance_score = EXCLUDED.relevance_score,
+            keyword_matches = EXCLUDED.keyword_matches,
+            last_checked = NOW()
+          RETURNING id, thread_id, thread_title, relevance_score`,
+          [
+            websiteId,
+            communityId,
+            thread.thread_id,
+            thread.thread_title,
+            thread.thread_url,
+            thread.author,
+            thread.upvotes,
+            thread.comments_count,
+            thread.posted_date,
+            thread.relevance_score,
+            thread.keyword_matches,
+          ]
+        );
+
+        savedThreads.push({
+          id: result.rows[0].id,
+          threadId: result.rows[0].thread_id,
+          title: result.rows[0].thread_title,
+          relevanceScore: result.rows[0].relevance_score,
+          ...thread,
+        });
+      } catch (insertError) {
+        console.error(`Error saving thread ${thread.thread_id}:`, insertError.message);
+      }
+    }
+
+    console.log(`✅ Saved ${savedThreads.length} threads to database`);
+
+    res.json({
+      message: `Discovered ${savedThreads.length} relevant threads`,
+      threads: savedThreads,
+    });
+  } catch (error) {
+    console.error('Discover threads error:', error);
+    res.status(500).json({ error: 'Failed to discover threads' });
+  }
+};
+
+/**
+ * Get threads for a community
+ * GET /api/reddit/:websiteId/communities/:communityId/threads
+ */
+const getThreads = async (req, res) => {
+  try {
+    const userId = req.user.userId;
+    const { websiteId, communityId } = req.params;
+    const { limit = 20, offset = 0 } = req.query;
+
+    // Verify website ownership
+    const websiteResult = await pool.query(
+      'SELECT id FROM websites WHERE id = $1 AND user_id = $2',
+      [websiteId, userId]
+    );
+
+    if (websiteResult.rows.length === 0) {
+      return res.status(404).json({ error: 'Website not found' });
+    }
+
+    // Verify community ownership
+    const communityResult = await pool.query(
+      'SELECT id FROM reddit_communities WHERE id = $1 AND website_id = $2',
+      [communityId, websiteId]
+    );
+
+    if (communityResult.rows.length === 0) {
+      return res.status(404).json({ error: 'Community not found' });
+    }
+
+    // Get threads sorted by relevance
+    const result = await pool.query(
+      `SELECT id, thread_id, thread_title, thread_url, author,
+              upvotes, comments_count, posted_date, relevance_score,
+              keyword_matches, created_at, last_checked
+       FROM reddit_threads
+       WHERE website_id = $1 AND reddit_community_id = $2
+       ORDER BY relevance_score DESC, posted_date DESC
+       LIMIT $3 OFFSET $4`,
+      [websiteId, communityId, limit, offset]
+    );
+
+    const threads = result.rows.map((row) => ({
+      id: row.id,
+      threadId: row.thread_id,
+      title: row.thread_title,
+      url: row.thread_url,
+      author: row.author,
+      upvotes: row.upvotes,
+      commentsCount: row.comments_count,
+      postedDate: row.posted_date,
+      relevanceScore: row.relevance_score,
+      keywordMatches: row.keyword_matches || [],
+      createdAt: row.created_at,
+      lastChecked: row.last_checked,
+    }));
+
+    // Get total count
+    const countResult = await pool.query(
+      'SELECT COUNT(*) as total FROM reddit_threads WHERE website_id = $1 AND reddit_community_id = $2',
+      [websiteId, communityId]
+    );
+    const total = parseInt(countResult.rows[0].total);
+
+    res.json({
+      threads,
+      pagination: {
+        total,
+        limit: parseInt(limit),
+        offset: parseInt(offset),
+        pages: Math.ceil(total / limit),
+      },
+    });
+  } catch (error) {
+    console.error('Get threads error:', error);
+    res.status(500).json({ error: 'Failed to fetch threads' });
+  }
+};
+
 module.exports = {
   discoverCommunities,
   getCommunities,
   trackCommunity,
   logParticipation,
   getParticipations,
+  discoverThreads,
+  getThreads,
 };
