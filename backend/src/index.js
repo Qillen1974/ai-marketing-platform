@@ -16,6 +16,7 @@ const adminAuthRoutes = require('./routes/adminAuthRoutes');
 const adminUsersRoutes = require('./routes/adminUsersRoutes');
 const redditRoutes = require('./routes/redditRoutes');
 const rankingRoutes = require('./routes/rankingRoutes');
+const aiMessageRoutes = require('./routes/aiMessageRoutes');
 
 const app = express();
 const PORT = process.env.PORT || 5000;
@@ -73,6 +74,9 @@ app.use('/api/reddit', redditRoutes);
 
 // Ranking/SEO tracking routes
 app.use('/api/rankings', rankingRoutes);
+
+// AI message generation routes
+app.use('/api/ai', aiMessageRoutes);
 
 // Health check endpoint
 app.get('/health', (req, res) => {
