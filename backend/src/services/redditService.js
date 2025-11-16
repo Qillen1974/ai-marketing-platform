@@ -199,8 +199,9 @@ const getSubredditInfo = async (subredditName, token) => {
 
 /**
  * Get recent posts from subreddit to analyze activity
+ * IMPROVEMENT A2: Added recency check to filter out dead communities
  * @param {string} subredditName - Name of subreddit
- * @returns {array} Recent posts
+ * @returns {array} Recent posts, or empty array if community is inactive
  */
 const getSubredditPosts = async (subredditName) => {
   try {
@@ -215,10 +216,11 @@ const getSubredditPosts = async (subredditName) => {
     });
 
     if (!response.data.data || !response.data.data.children) {
+      console.log(`⚠️ No recent posts in r/${subredditName}`);
       return [];
     }
 
-    return response.data.data.children.map((child) => ({
+    const posts = response.data.data.children.map((child) => ({
       id: child.data.id,
       title: child.data.title,
       url: child.data.url,
@@ -227,6 +229,24 @@ const getSubredditPosts = async (subredditName) => {
       comments: child.data.num_comments,
       author: child.data.author,
     }));
+
+    // IMPROVEMENT A2: Check if community is actually active
+    if (posts.length === 0) {
+      console.log(`⚠️ No recent posts in r/${subredditName}`);
+      return [];
+    }
+
+    const mostRecentPost = posts[0];
+    const daysSinceLastPost = (Date.now() - mostRecentPost.createdAt) / (1000 * 60 * 60 * 24);
+
+    // If last post is older than 30 days, community is likely dead
+    if (daysSinceLastPost > 30) {
+      console.log(`⚠️ r/${subredditName} is inactive (last post: ${daysSinceLastPost.toFixed(1)} days ago)`);
+      return []; // Return empty = don't include this community
+    }
+
+    console.log(`✅ r/${subredditName} is active (last post: ${daysSinceLastPost.toFixed(1)} days ago)`);
+    return posts;
   } catch (error) {
     console.error(`❌ Error getting posts from ${subredditName}:`, error.message);
     return [];
@@ -335,7 +355,21 @@ const discoverRedditCommunities = async (keywords = []) => {
 
         // Get recent activity
         const posts = await getSubredditPosts(subreddit.name);
-        const avgPostsPerDay = posts.length / 30; // Rough estimate
+
+        // IMPROVEMENT A3: Calculate posts per day correctly
+        // Only count posts from last 7 days (not dividing 100 by 30)
+        const now = Date.now();
+        const sevenDaysAgo = now - (7 * 24 * 60 * 60 * 1000);
+        const recentPosts = posts.filter(post => post.createdAt.getTime() >= sevenDaysAgo);
+        const avgPostsPerDay = recentPosts.length > 0 ? recentPosts.length / 7 : 0; // Real calculation!
+
+        // Skip communities with no activity in last 7 days (already filtered by getSubredditPosts, but double-check)
+        if (posts.length === 0) {
+          console.log(`⏭️  Skipping r/${subreddit.name}: no recent posts`);
+          continue;
+        }
+
+        const lastPostDate = posts.length > 0 ? posts[0].createdAt : new Date();
 
         communities.push({
           subreddit_name: subreddit.name,
@@ -348,7 +382,8 @@ const discoverRedditCommunities = async (keywords = []) => {
           self_promotion_allowed: false, // Assume not allowed unless verified
           requires_karma: 0, // Would need additional API calls to determine
           subreddit_age_days: subreddit.subredditAge,
-          avg_posts_per_day: avgPostsPerDay,
+          avg_posts_per_day: Math.round(avgPostsPerDay * 10) / 10, // Round to 1 decimal place
+          last_post_date: lastPostDate, // NEW: track this for verification
           reddit_url: subreddit.url,
           reddit_icon_url: subreddit.iconUrl,
           community_type: subreddit.subscribers > 100000 ? 'general' : 'niche',

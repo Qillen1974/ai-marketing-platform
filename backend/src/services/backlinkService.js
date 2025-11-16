@@ -38,8 +38,11 @@ const discoverBacklinkOpportunities = async (domain, keywords = [], opportunityT
     const uniqueOpportunities = deduplicateOpportunities(opportunities);
     const scoredOpportunities = scoreOpportunities(uniqueOpportunities);
 
+    // IMPROVEMENT A1: Filter by achievability (removes unrealistic high-difficulty targets)
+    const achievableOpportunities = filterByAchievability(scoredOpportunities);
+
     // Filter by opportunity type if specified
-    let filteredOpportunities = scoredOpportunities;
+    let filteredOpportunities = achievableOpportunities;
     if (opportunityType && opportunityType !== 'mixed') {
       // Map campaign type names to opportunity types
       const typeMap = {
@@ -49,11 +52,11 @@ const discoverBacklinkOpportunities = async (domain, keywords = [], opportunityT
         'directories': 'directory'
       };
       const targetType = typeMap[opportunityType] || opportunityType;
-      filteredOpportunities = scoredOpportunities.filter(opp => opp.opportunity_type === targetType);
+      filteredOpportunities = achievableOpportunities.filter(opp => opp.opportunity_type === targetType);
       console.log(`🔍 Filtered to ${filteredOpportunities.length} ${targetType} opportunities`);
     }
 
-    console.log(`✅ Found ${filteredOpportunities.length} backlink opportunities`);
+    console.log(`✅ Found ${filteredOpportunities.length} achievable backlink opportunities`);
     return filteredOpportunities.slice(0, 15); // Return top 15
   } catch (error) {
     console.error('❌ Error discovering backlink opportunities:', error.message);
@@ -240,6 +243,63 @@ const scoreOpportunities = (opportunities) => {
 };
 
 /**
+ * IMPROVEMENT A1: Filter opportunities by achievability
+ * Separates realistic "easy wins" from impossible high-difficulty targets
+ * @param {array} opportunities - Opportunities to filter
+ * @returns {array} Filtered and sorted opportunities
+ */
+const filterByAchievability = (opportunities) => {
+  console.log(`📊 Filtering ${opportunities.length} opportunities by achievability...`);
+
+  const filtered = opportunities
+    .filter((opp) => {
+      // Remove spam farms (spam score > 30)
+      if (opp.spam_score > 30) {
+        console.log(`  ❌ Removed ${opp.source_domain}: spam score too high (${opp.spam_score})`);
+        return false;
+      }
+
+      // Remove super high DA sites (>90) - unrealistic for new domains to get links from
+      if (opp.domain_authority > 90) {
+        console.log(`  ❌ Removed ${opp.source_domain}: DA too high (${opp.domain_authority}) - unrealistic target`);
+        return false;
+      }
+
+      // Keep only moderate difficulty (20-70 range - achievable for outreach)
+      if (opp.difficulty_score < 20 || opp.difficulty_score > 70) {
+        if (opp.difficulty_score < 20) {
+          console.log(`  ⚠️  Removed ${opp.source_domain}: difficulty too low (${opp.difficulty_score}) - may be irrelevant`);
+        } else {
+          console.log(`  ❌ Removed ${opp.source_domain}: difficulty too high (${opp.difficulty_score}) - unrealistic`);
+        }
+        return false;
+      }
+
+      return true;
+    })
+    .sort((a, b) => {
+      // Sort by: difficulty (easy first), then DA (high first)
+      if (a.difficulty_score !== b.difficulty_score) {
+        return a.difficulty_score - b.difficulty_score;
+      }
+      return b.domain_authority - a.domain_authority;
+    });
+
+  console.log(`✅ Filtered to ${filtered.length} achievable opportunities (from ${opportunities.length})`);
+
+  if (filtered.length === 0) {
+    console.log(`⚠️  No achievable opportunities found. Returning all filtered by spam score only.`);
+    // Fallback: return at least the low-spam opportunities
+    return opportunities
+      .filter(opp => opp.spam_score <= 30)
+      .sort((a, b) => a.difficulty_score - b.difficulty_score)
+      .slice(0, 10);
+  }
+
+  return filtered;
+};
+
+/**
  * Generate mock opportunities for a keyword (fallback)
  * @param {string} keyword - Keyword
  * @returns {array} Mock opportunities
@@ -323,4 +383,5 @@ const generateDefaultOpportunities = () => {
 
 module.exports = {
   discoverBacklinkOpportunities,
+  filterByAchievability, // Export for testing
 };
