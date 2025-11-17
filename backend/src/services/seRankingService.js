@@ -30,17 +30,48 @@ const getBacklinksForDomain = async (domain) => {
       'NOT SET';
     console.log(`🔍 Fetching backlinks from SE Ranking for: ${domain} (using key: ${keyMasked})`);
 
-    const response = await axios.get(`${SE_RANKING_API_BASE}/backlinks`, {
-      params: {
-        target: domain,
-        limit: 100, // Get top 100 backlinks for analysis
-      },
-      headers: {
-        'Authorization': `ApiKey ${apiKey}`,
-        'Content-Type': 'application/json',
-      },
-      timeout: 15000,
-    });
+    // Try different authentication methods for SE Ranking API
+    // Some endpoints might use different header formats
+    let response;
+    const authMethods = [
+      { header: 'Authorization', value: `ApiKey ${apiKey}`, name: 'ApiKey' },
+      { header: 'Authorization', value: `Bearer ${apiKey}`, name: 'Bearer' },
+      { header: 'X-API-Key', value: apiKey, name: 'X-API-Key header' },
+    ];
+
+    let lastError = null;
+
+    for (const auth of authMethods) {
+      try {
+        const headers = {
+          'Content-Type': 'application/json',
+        };
+        headers[auth.header] = auth.value;
+
+        console.log(`  🔄 Trying ${auth.name} authentication...`);
+
+        response = await axios.get(`${SE_RANKING_API_BASE}/backlinks`, {
+          params: {
+            target: domain,
+            limit: 100,
+          },
+          headers,
+          timeout: 15000,
+        });
+
+        console.log(`  ✅ Success with ${auth.name} authentication`);
+        break; // Success, exit the loop
+      } catch (err) {
+        lastError = err;
+        console.log(`  ❌ Failed with ${auth.name}: ${err.response?.status || err.message}`);
+        continue; // Try next auth method
+      }
+    }
+
+    // If all auth methods failed, throw the last error
+    if (!response) {
+      throw lastError || new Error('All authentication methods failed');
+    }
 
     if (!response.data || !response.data.backlinks) {
       console.log(`⚠️  No backlink data returned for ${domain}`);
