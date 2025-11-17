@@ -59,12 +59,29 @@ const runAudit = async (req, res) => {
     console.log(`📌 Target keywords: ${website.target_keywords || 'none'}`);
     const auditData = await performSEOAudit(website.domain, website.target_keywords);
 
-    // Calculate overall score
-    const overallScore = Math.round(
-      (auditData.onPageScore + auditData.technicalScore + auditData.contentScore) / 3
+    // IMPROVED: Calculate scores based on Google metrics + actual crawled issues
+    // Don't just use Google PageSpeed score - it only measures performance!
+    const { calculateScoresFromIssues } = require('../services/scoreCalculationService');
+
+    const scores = calculateScoresFromIssues(
+      auditData.onPageScore || 75,
+      auditData.technicalScore || 70,
+      auditData.contentScore || 75,
+      auditData.issues || []
     );
 
-    // Save audit result to database
+    // Calculate overall score
+    const overallScore = Math.round(
+      (scores.onPageScore + scores.technicalScore + scores.contentScore) / 3
+    );
+
+    console.log(`📊 Audit Scores Breakdown:`);
+    console.log(`   - On-Page: ${scores.onPageScore} (Google: ${auditData.onPageScore}, Issues: ${auditData.issues.filter(i => i.page).length})`);
+    console.log(`   - Technical: ${scores.technicalScore} (Google: ${auditData.technicalScore})`);
+    console.log(`   - Content: ${scores.contentScore} (Google: ${auditData.contentScore})`);
+    console.log(`   - Overall: ${overallScore}`);
+
+    // Save audit result to database (with improved scores)
     const reportResult = await pool.query(
       `INSERT INTO seo_reports (website_id, on_page_score, technical_score, content_score, overall_score,
                                total_issues, critical_issues, recommendations, report_data)
@@ -72,9 +89,9 @@ const runAudit = async (req, res) => {
        RETURNING id, audit_date, overall_score`,
       [
         websiteId,
-        auditData.onPageScore,
-        auditData.technicalScore,
-        auditData.contentScore,
+        scores.onPageScore,  // Use improved score (not just Google metrics)
+        scores.technicalScore,  // Use improved score
+        scores.contentScore,  // Use improved score
         overallScore,
         auditData.issues.length,
         auditData.issues.filter((i) => i.severity === 'critical').length,
@@ -137,9 +154,9 @@ const runAudit = async (req, res) => {
         auditDate: report.audit_date,
         overallScore: report.overall_score,
         scores: {
-          onPage: auditData.onPageScore,
-          technical: auditData.technicalScore,
-          content: auditData.contentScore,
+          onPage: scores.onPageScore,  // Improved scores (including issues)
+          technical: scores.technicalScore,  // Improved scores
+          content: scores.contentScore,  // Improved scores
         },
         issues: auditData.issues,
         recommendations: auditData.recommendations,
