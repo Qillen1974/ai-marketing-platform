@@ -42,17 +42,43 @@ const getBacklinksForDomain = async (domain) => {
 
     // SE Ranking API uses "Token" authentication format (from their documentation)
     // https://seranking.com/api/
-    const response = await axios.get(`${apiBase}/backlinks`, {
-      params: {
-        target: domain,
-        limit: 100, // Get top 100 backlinks for analysis
-      },
-      headers: {
-        'Authorization': `Token ${apiKey}`,
-        'Content-Type': 'application/json',
-      },
-      timeout: 15000,
-    });
+    // Try different endpoint paths as SE Ranking might use different naming
+    const possibleEndpoints = [
+      `${apiBase}/backlinks`,
+      `${apiBase}/seo/backlinks`,
+      `${apiBase}/domains/backlinks`,
+      `${apiBase}/backlink-checker`,
+    ];
+
+    let response = null;
+    let lastError = null;
+
+    for (const endpoint of possibleEndpoints) {
+      try {
+        console.log(`  🔄 Trying endpoint: ${endpoint}`);
+        response = await axios.get(endpoint, {
+          params: {
+            target: domain,
+            limit: 100,
+          },
+          headers: {
+            'Authorization': `Token ${apiKey}`,
+            'Content-Type': 'application/json',
+          },
+          timeout: 15000,
+        });
+        console.log(`  ✅ Success with endpoint: ${endpoint}`);
+        break;
+      } catch (err) {
+        lastError = err;
+        console.log(`  ❌ Failed: ${err.response?.status || err.message}`);
+        continue;
+      }
+    }
+
+    if (!response) {
+      throw lastError || new Error('All endpoint variations failed');
+    }
 
     if (!response.data || !response.data.backlinks) {
       console.log(`⚠️  No backlink data returned for ${domain}`);
