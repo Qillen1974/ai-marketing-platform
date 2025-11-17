@@ -18,7 +18,10 @@ const getBacklinksForDomain = async (domain) => {
       return null;
     }
 
-    console.log(`🔍 Fetching backlinks from SE Ranking for: ${domain}`);
+    const keyMasked = process.env.SE_RANKING_API_KEY ?
+      `${process.env.SE_RANKING_API_KEY.substring(0, 8)}...${process.env.SE_RANKING_API_KEY.substring(-4)}` :
+      'NOT SET';
+    console.log(`🔍 Fetching backlinks from SE Ranking for: ${domain} (using key: ${keyMasked})`);
 
     const response = await axios.get(`${SE_RANKING_API_BASE}/backlinks`, {
       params: {
@@ -26,7 +29,7 @@ const getBacklinksForDomain = async (domain) => {
         limit: 100, // Get top 100 backlinks for analysis
       },
       headers: {
-        'Authorization': `Token ${process.env.SE_RANKING_API_KEY}`,
+        'Authorization': `ApiKey ${process.env.SE_RANKING_API_KEY}`,
         'Content-Type': 'application/json',
       },
       timeout: 15000,
