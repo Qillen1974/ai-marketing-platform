@@ -4,11 +4,15 @@ const axios = require('axios');
 // Gets real backlink data from SE Ranking's Backlinks API
 // Replaces mock/estimated data with actual research
 //
+// API Documentation: https://seranking.com/api/
+// Authentication: Token-based (Authorization: Token {key})
+//
 // Supports two API key types:
-// - SE_RANKING_API_KEY: Data API key (legacy, may not work for backlinks)
-// - SE_RANKING_PROJECT_API_KEY: Project API key (recommended for backlinks)
+// - SE_RANKING_API_KEY: Data API key (for /v1/backlinks endpoint)
+// - SE_RANKING_PROJECT_API_KEY: Project API key (for /v3/backlinks endpoint)
 
-const SE_RANKING_API_BASE = 'https://api.seranking.com/v4';
+const SE_RANKING_DATA_API_BASE = 'https://api.seranking.com/v1';
+const SE_RANKING_PROJECT_API_BASE = 'https://api.seranking.com/v3';
 
 /**
  * Get backlinks for a domain from SE Ranking API
@@ -28,50 +32,27 @@ const getBacklinksForDomain = async (domain) => {
     const keyMasked = apiKey ?
       `${apiKey.substring(0, 8)}...${apiKey.substring(apiKey.length - 5)}` :
       'NOT SET';
-    console.log(`🔍 Fetching backlinks from SE Ranking for: ${domain} (using key: ${keyMasked})`);
 
-    // Try different authentication methods for SE Ranking API
-    // Some endpoints might use different header formats
-    let response;
-    const authMethods = [
-      { header: 'Authorization', value: `ApiKey ${apiKey}`, name: 'ApiKey' },
-      { header: 'Authorization', value: `Bearer ${apiKey}`, name: 'Bearer' },
-      { header: 'X-API-Key', value: apiKey, name: 'X-API-Key header' },
-    ];
+    // Determine which API endpoint to use based on key type
+    const isProjectKey = !!process.env.SE_RANKING_PROJECT_API_KEY;
+    const apiBase = isProjectKey ? SE_RANKING_PROJECT_API_BASE : SE_RANKING_DATA_API_BASE;
+    const keyType = isProjectKey ? 'Project' : 'Data';
 
-    let lastError = null;
+    console.log(`🔍 Fetching backlinks from SE Ranking for: ${domain} (${keyType} API, key: ${keyMasked})`);
 
-    for (const auth of authMethods) {
-      try {
-        const headers = {
-          'Content-Type': 'application/json',
-        };
-        headers[auth.header] = auth.value;
-
-        console.log(`  🔄 Trying ${auth.name} authentication...`);
-
-        response = await axios.get(`${SE_RANKING_API_BASE}/backlinks`, {
-          params: {
-            target: domain,
-            limit: 100,
-          },
-          headers,
-          timeout: 15000,
-        });
-
-        console.log(`  ✅ Success with ${auth.name} authentication`);
-        break; // Success, exit the loop
-      } catch (err) {
-        lastError = err;
-        console.log(`  ❌ Failed with ${auth.name}: ${err.response?.status || err.message}`);
-        continue; // Try next auth method
-      }
-    }
-
-    // If all auth methods failed, throw the last error
-    if (!response) {
-      throw lastError || new Error('All authentication methods failed');
-    }
+    // SE Ranking API uses "Token" authentication format (from their documentation)
+    // https://seranking.com/api/
+    const response = await axios.get(`${apiBase}/backlinks`, {
+      params: {
+        target: domain,
+        limit: 100, // Get top 100 backlinks for analysis
+      },
+      headers: {
+        'Authorization': `Token ${apiKey}`,
+        'Content-Type': 'application/json',
+      },
+      timeout: 15000,
+    });
 
     if (!response.data || !response.data.backlinks) {
       console.log(`⚠️  No backlink data returned for ${domain}`);
