@@ -19,7 +19,7 @@ const getBacklinksForDomain = async (domain) => {
     }
 
     const keyMasked = process.env.SE_RANKING_API_KEY ?
-      `${process.env.SE_RANKING_API_KEY.substring(0, 8)}...${process.env.SE_RANKING_API_KEY.substring(-4)}` :
+      `fd800428...${process.env.SE_RANKING_API_KEY.substring(process.env.SE_RANKING_API_KEY.length - 5)}` :
       'NOT SET';
     console.log(`🔍 Fetching backlinks from SE Ranking for: ${domain} (using key: ${keyMasked})`);
 
@@ -59,7 +59,12 @@ const getBacklinksForDomain = async (domain) => {
     console.log(`✅ Retrieved backlink data for ${domain}: ${backlinksData.total_backlinks} backlinks`);
     return backlinksData;
   } catch (error) {
-    console.error(`❌ Error fetching backlinks for ${domain}:`, error.message);
+    // Better error logging for debugging
+    if (error.response) {
+      console.error(`❌ Error fetching backlinks for ${domain}:`, `Status ${error.response.status}`, error.response.data?.error || error.message);
+    } else {
+      console.error(`❌ Error fetching backlinks for ${domain}:`, error.message);
+    }
     return null;
   }
 };
