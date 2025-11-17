@@ -3,6 +3,10 @@ const axios = require('axios');
 // SE Ranking API Service
 // Gets real backlink data from SE Ranking's Backlinks API
 // Replaces mock/estimated data with actual research
+//
+// Supports two API key types:
+// - SE_RANKING_API_KEY: Data API key (legacy, may not work for backlinks)
+// - SE_RANKING_PROJECT_API_KEY: Project API key (recommended for backlinks)
 
 const SE_RANKING_API_BASE = 'https://api.seranking.com/v4';
 
@@ -13,13 +17,16 @@ const SE_RANKING_API_BASE = 'https://api.seranking.com/v4';
  */
 const getBacklinksForDomain = async (domain) => {
   try {
-    if (!process.env.SE_RANKING_API_KEY) {
-      console.warn('⚠️  SE Ranking API key not configured');
+    // Try Project API key first (recommended), fall back to Data API key
+    const apiKey = process.env.SE_RANKING_PROJECT_API_KEY || process.env.SE_RANKING_API_KEY;
+
+    if (!apiKey) {
+      console.warn('⚠️  SE Ranking API key not configured (need SE_RANKING_PROJECT_API_KEY or SE_RANKING_API_KEY)');
       return null;
     }
 
-    const keyMasked = process.env.SE_RANKING_API_KEY ?
-      `fd800428...${process.env.SE_RANKING_API_KEY.substring(process.env.SE_RANKING_API_KEY.length - 5)}` :
+    const keyMasked = apiKey ?
+      `${apiKey.substring(0, 8)}...${apiKey.substring(apiKey.length - 5)}` :
       'NOT SET';
     console.log(`🔍 Fetching backlinks from SE Ranking for: ${domain} (using key: ${keyMasked})`);
 
@@ -29,7 +36,7 @@ const getBacklinksForDomain = async (domain) => {
         limit: 100, // Get top 100 backlinks for analysis
       },
       headers: {
-        'Authorization': `ApiKey ${process.env.SE_RANKING_API_KEY}`,
+        'Authorization': `ApiKey ${apiKey}`,
         'Content-Type': 'application/json',
       },
       timeout: 15000,
