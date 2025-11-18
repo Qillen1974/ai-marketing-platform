@@ -1,5 +1,6 @@
 const { pool } = require('../config/database');
 const { getKeywordResearch: performKeywordResearch, getSuggestedKeywordsWithMetrics } = require('../services/seoService');
+const { getKeywordMetrics } = require('../services/serperService');
 
 // Get keyword research for a website
 const getKeywordResearch = async (req, res) => {
@@ -132,17 +133,30 @@ const addKeyword = async (req, res) => {
       return res.status(404).json({ error: 'Website not found' });
     }
 
-    // Add keyword
+    console.log(`📝 Adding keyword: "${keyword}"`);
+
+    // Fetch real metrics from Serper API for accurate difficulty
+    console.log(`📊 Fetching real metrics from Serper API for: "${keyword}"`);
+    const metrics = await getKeywordMetrics(keyword);
+
+    const searchVolume = metrics.estimatedVolume;
+    const difficulty = metrics.difficulty;
+
+    console.log(`✅ Metrics fetched - Volume: ${searchVolume}, Difficulty: ${difficulty}`);
+
+    // Add keyword with real metrics
     const result = await pool.query(
       `INSERT INTO keywords (website_id, keyword, search_volume, difficulty)
        VALUES ($1, $2, $3, $4)
        ON CONFLICT (website_id, keyword) DO UPDATE
-       SET last_updated = NOW()
+       SET search_volume = $3, difficulty = $4, last_updated = NOW()
        RETURNING id, keyword, search_volume, difficulty`,
-      [websiteId, keyword.toLowerCase(), Math.floor(Math.random() * 10000) + 100, Math.floor(Math.random() * 100)]
+      [websiteId, keyword.toLowerCase(), searchVolume, difficulty]
     );
 
     const addedKeyword = result.rows[0];
+
+    console.log(`✅ Keyword added successfully: "${addedKeyword.keyword}" (Difficulty: ${addedKeyword.difficulty})`);
 
     res.status(201).json({
       message: 'Keyword added successfully',
