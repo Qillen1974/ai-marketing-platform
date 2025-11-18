@@ -108,8 +108,12 @@ const discoverOpportunities = async (req, res) => {
 
     // Save opportunities to database
     const savedOpportunities = [];
+    console.log(`💾 Saving ${opportunities.length} opportunities for website_id=${websiteId}, campaign_id=${campaignId}`);
+
     for (const opp of opportunities) {
       try {
+        console.log(`  → Saving: ${opp.source_domain} (DA: ${opp.domain_authority})`);
+
         const result = await pool.query(
           `INSERT INTO backlink_opportunities (
             website_id, campaign_id, source_url, source_domain, domain_authority,
@@ -151,6 +155,7 @@ const discoverOpportunities = async (req, res) => {
           difficultyScore: result.rows[0].difficulty_score,
           status: result.rows[0].status,
         });
+        console.log(`    ✅ Saved with ID: ${result.rows[0].id}`);
       } catch (insertError) {
         console.error(`Error saving opportunity ${opp.source_domain}:`, insertError.message);
         throw insertError;
@@ -186,6 +191,8 @@ const getOpportunities = async (req, res) => {
     const { websiteId } = req.params;
     const { status, type, difficulty, limit = 50, offset = 0 } = req.query;
 
+    console.log(`📋 Fetching opportunities for website ${websiteId}, user ${userId}`);
+
     // Verify website ownership
     const websiteResult = await pool.query(
       'SELECT id FROM websites WHERE id = $1 AND user_id = $2',
@@ -193,8 +200,11 @@ const getOpportunities = async (req, res) => {
     );
 
     if (websiteResult.rows.length === 0) {
+      console.log(`❌ Website ${websiteId} not found for user ${userId}`);
       return res.status(404).json({ error: 'Website not found' });
     }
+
+    console.log(`✅ Website verified for user ${userId}`);
 
     // Build query with filters
     let query = `
@@ -239,7 +249,12 @@ const getOpportunities = async (req, res) => {
     query += ` ORDER BY domain_authority DESC LIMIT $${paramIndex} OFFSET $${paramIndex + 1}`;
     params.push(limit, offset);
 
+    console.log(`🔍 Query: ${query}`);
+    console.log(`📊 Params: ${JSON.stringify(params)}`);
+
     const result = await pool.query(query, params);
+
+    console.log(`📈 Found ${result.rows.length} opportunities in database`);
 
     const opportunities = result.rows.map((opp) => ({
       id: opp.id,
@@ -259,6 +274,7 @@ const getOpportunities = async (req, res) => {
       updatedAt: opp.updated_at,
     }));
 
+    console.log(`✅ Returning ${opportunities.length} opportunities to frontend`);
     res.json({ opportunities });
   } catch (error) {
     console.error('Get opportunities error:', error);
