@@ -397,7 +397,60 @@ const extractKeywordsFromText = (text, keywordMap, weight = 1) => {
 };
 
 /**
+ * Generate long-tail keyword variations from base keywords
+ * Useful for new websites targeting niche, less competitive keywords
+ * @param {array} baseKeywords - Base keywords to expand
+ * @returns {array} Array of long-tail variations
+ */
+const generateLongTailKeywords = (baseKeywords) => {
+  const longTailModifiers = [
+    // Question-based
+    'how to', 'best', 'top', 'guide to', 'tips for', 'tools for',
+    // Audience-based
+    'for beginners', 'for small business', 'for remote teams', 'for freelancers',
+    'for small teams', 'for startups', 'for agencies',
+    // Intent-based
+    'comparison', 'vs', 'review', 'tutorial', 'checklist', 'examples',
+    'free', 'cheap', 'affordable', 'open source',
+    // Location/context-based
+    '2025', 'latest', 'new', 'simple', 'easy', 'quick',
+    // Problem-focused
+    'problems with', 'issues with', 'alternatives to', 'instead of'
+  ];
+
+  const longTailKeywords = [];
+
+  for (const keyword of baseKeywords) {
+    // Add base keyword
+    longTailKeywords.push(keyword);
+
+    // Generate variations
+    const variations = [
+      // Prefix modifiers
+      ...longTailModifiers.slice(0, 6).map(mod => `${mod} ${keyword}`),
+      // Suffix modifiers
+      ...longTailModifiers.slice(6, 13).map(mod => `${keyword} ${mod}`),
+      // Specific combinations for new websites
+      `${keyword} for small teams`,
+      `${keyword} for beginners`,
+      `best ${keyword}`,
+      `${keyword} tutorial`,
+      `${keyword} guide`,
+    ];
+
+    variations.forEach(v => {
+      if (!longTailKeywords.includes(v)) {
+        longTailKeywords.push(v);
+      }
+    });
+  }
+
+  return longTailKeywords;
+};
+
+/**
  * Get keyword suggestions and their metrics from Serper
+ * Includes both short-tail and long-tail keyword variations
  * @param {string} domain - Website domain
  * @returns {array} Array of suggested keywords with metrics
  */
@@ -412,10 +465,18 @@ const getSuggestedKeywordsWithMetrics = async (domain) => {
 
     console.log(`📊 Fetching metrics for ${suggestedKeywords.length} suggested keywords...`);
 
-    // Get metrics for suggested keywords from Serper
-    const metricsArray = await getMultipleKeywordMetrics(suggestedKeywords);
+    // Generate long-tail variations for better backlink opportunities
+    console.log(`🔄 Generating long-tail keyword variations...`);
+    const longTailKeywords = generateLongTailKeywords(suggestedKeywords);
+    const allKeywords = [...suggestedKeywords, ...longTailKeywords];
+    const uniqueKeywords = [...new Set(allKeywords)]; // Remove duplicates
 
-    // Format the results
+    console.log(`📈 Generated ${uniqueKeywords.length} total keywords (${suggestedKeywords.length} base + ${longTailKeywords.length - suggestedKeywords.length} long-tail variations)`);
+
+    // Get metrics for suggested keywords from Serper
+    const metricsArray = await getMultipleKeywordMetrics(uniqueKeywords);
+
+    // Format the results - mark long-tail keywords for easy identification
     const keywordsWithMetrics = metricsArray.map((metrics) => ({
       keyword: metrics.keyword,
       searchVolume: metrics.estimatedVolume,
@@ -425,9 +486,20 @@ const getSuggestedKeywordsWithMetrics = async (domain) => {
       trend: 'stable',
       currentPosition: 0,
       isFromRealAPI: metrics.isReal,
+      isLongTail: metrics.keyword.split(' ').length >= 3, // Mark 3+ word phrases as long-tail
+      type: metrics.keyword.split(' ').length >= 3 ? 'long-tail' : 'short-tail',
     }));
 
-    return keywordsWithMetrics;
+    // Sort: long-tail first (better for new websites), then by difficulty
+    const sorted = keywordsWithMetrics.sort((a, b) => {
+      if (a.isLongTail !== b.isLongTail) {
+        return a.isLongTail ? -1 : 1; // Long-tail first
+      }
+      return a.difficulty - b.difficulty; // Then by difficulty (easier first)
+    });
+
+    console.log(`✅ Generated ${sorted.filter(k => k.isLongTail).length} long-tail keywords, ${sorted.filter(k => !k.isLongTail).length} short-tail`);
+    return sorted;
   } catch (error) {
     console.error('Error getting suggested keywords with metrics:', error);
     throw error;

@@ -40,7 +40,12 @@ const discoverBacklinkOpportunities = async (domain, keywords = [], opportunityT
       // Step 2: Get their backlinks using SE Ranking API
       console.log(`🔗 Analyzing backlinks from ${rankingSites.length} top-ranking sites...`);
 
-      for (const site of rankingSites.slice(0, 5)) {
+      // IMPROVEMENT: Check positions 1-5 AND 6-20 to find medium-authority sites
+      // Top 5 have huge companies, but positions 6-20 have more achievable targets
+      const sitesToAnalyze = rankingSites.slice(0, 20);
+      console.log(`   📊 Analyzing positions 1-20 (not just top 5) to find more diverse authority levels`);
+
+      for (const site of sitesToAnalyze) {
         try {
           // Get backlinks from this top-ranking competitor
           const competitorBacklinks = await getBacklinksForDomain(site.source_domain);
