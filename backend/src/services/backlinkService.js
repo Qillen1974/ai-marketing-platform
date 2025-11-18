@@ -14,9 +14,10 @@ const SERPER_API_URL = 'https://google.serper.dev/search';
  * @param {string} domain - Website domain to find backlinks for
  * @param {array} keywords - Keywords to analyze for opportunities
  * @param {string} opportunityType - Filter by opportunity type (guest_posts, broken_links, resource_pages, directories, mixed)
+ * @param {object} userSettings - User's DA and difficulty filter preferences
  * @returns {array} Array of backlink opportunities with real data
  */
-const discoverBacklinkOpportunities = async (domain, keywords = [], opportunityType = 'mixed') => {
+const discoverBacklinkOpportunities = async (domain, keywords = [], opportunityType = 'mixed', userSettings = null) => {
   try {
     console.log(`🔗 Discovering backlink opportunities for ${domain}...`);
     if (opportunityType !== 'mixed') {
@@ -88,8 +89,9 @@ const discoverBacklinkOpportunities = async (domain, keywords = [], opportunityT
     const uniqueOpportunities = deduplicateOpportunities(opportunities);
     const scoredOpportunities = scoreOpportunities(uniqueOpportunities);
 
-    // IMPROVEMENT A1: Filter by achievability (removes unrealistic high-difficulty targets)
-    const achievableOpportunities = filterByAchievability(scoredOpportunities);
+    // IMPROVEMENT A1 & B: Filter by achievability with user settings (removes unrealistic high-difficulty targets)
+    // Pass user settings to filtering function to use configurable ranges
+    const achievableOpportunities = filterByAchievability(scoredOpportunities, userSettings);
 
     // Filter by opportunity type if specified
     let filteredOpportunities = achievableOpportunities;
@@ -335,13 +337,22 @@ const scoreOpportunities = (opportunities) => {
 };
 
 /**
- * IMPROVEMENT A1: Filter opportunities by achievability
+ * IMPROVEMENT A1 & B: Filter opportunities by achievability
  * Separates realistic "easy wins" from impossible high-difficulty targets
+ * Uses user-configurable settings for DA and difficulty ranges
  * @param {array} opportunities - Opportunities to filter
+ * @param {object} userSettings - User's filter preferences (minDA, maxDA, minDiff, maxDiff)
  * @returns {array} Filtered and sorted opportunities
  */
-const filterByAchievability = (opportunities) => {
+const filterByAchievability = (opportunities, userSettings = null) => {
+  // Use user settings or defaults
+  const minDA = userSettings?.minDomainAuthority || 10;
+  const maxDA = userSettings?.maxDomainAuthority || 60;
+  const minDifficulty = userSettings?.minDifficulty || 20;
+  const maxDifficulty = userSettings?.maxDifficulty || 70;
+
   console.log(`📊 Filtering ${opportunities.length} opportunities by achievability...`);
+  console.log(`⚙️  Using settings: DA ${minDA}-${maxDA}, Difficulty ${minDifficulty}-${maxDifficulty}`);
 
   const filtered = opportunities
     .filter((opp) => {
@@ -351,18 +362,24 @@ const filterByAchievability = (opportunities) => {
         return false;
       }
 
-      // Remove super high DA sites (>90) - unrealistic for new domains to get links from
-      if (opp.domain_authority > 90) {
-        console.log(`  ❌ Removed ${opp.source_domain}: DA too high (${opp.domain_authority}) - unrealistic target`);
+      // IMPROVEMENT B: Use user's max DA setting instead of hardcoded value
+      if (opp.domain_authority > maxDA) {
+        console.log(`  ❌ Removed ${opp.source_domain}: DA ${opp.domain_authority} exceeds max ${maxDA}`);
         return false;
       }
 
-      // Keep only moderate difficulty (20-70 range - achievable for outreach)
-      if (opp.difficulty_score < 20 || opp.difficulty_score > 70) {
-        if (opp.difficulty_score < 20) {
-          console.log(`  ⚠️  Removed ${opp.source_domain}: difficulty too low (${opp.difficulty_score}) - may be irrelevant`);
+      // Use user's min DA setting
+      if (opp.domain_authority < minDA) {
+        console.log(`  ⚠️  Removed ${opp.source_domain}: DA ${opp.domain_authority} below min ${minDA}`);
+        return false;
+      }
+
+      // Use user's difficulty range (configurable instead of hardcoded 20-70)
+      if (opp.difficulty_score < minDifficulty || opp.difficulty_score > maxDifficulty) {
+        if (opp.difficulty_score < minDifficulty) {
+          console.log(`  ⚠️  Removed ${opp.source_domain}: difficulty ${opp.difficulty_score} below min ${minDifficulty}`);
         } else {
-          console.log(`  ❌ Removed ${opp.source_domain}: difficulty too high (${opp.difficulty_score}) - unrealistic`);
+          console.log(`  ❌ Removed ${opp.source_domain}: difficulty ${opp.difficulty_score} exceeds max ${maxDifficulty}`);
         }
         return false;
       }
@@ -380,7 +397,7 @@ const filterByAchievability = (opportunities) => {
   console.log(`✅ Filtered to ${filtered.length} achievable opportunities (from ${opportunities.length})`);
 
   if (filtered.length === 0) {
-    console.log(`⚠️  No achievable opportunities found. Returning all filtered by spam score only.`);
+    console.log(`⚠️  No achievable opportunities found in specified range. Returning all filtered by spam score only.`);
     // Fallback: return at least the low-spam opportunities
     return opportunities
       .filter(opp => opp.spam_score <= 30)

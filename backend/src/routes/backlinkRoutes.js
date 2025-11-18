@@ -6,11 +6,17 @@ const {
   getOpportunity,
   updateOpportunity,
   getCampaignStats,
+  getBacklinkSettings,
+  updateBacklinkSettings,
 } = require('../controllers/backlinkController');
 const { authMiddleware } = require('../middleware/auth');
 
 // All routes require authentication
 router.use(authMiddleware);
+
+// Backlink discovery settings
+router.get('/settings/discovery', getBacklinkSettings);
+router.post('/settings/discovery', updateBacklinkSettings);
 
 // Discover backlink opportunities
 router.post('/:websiteId/discover', discoverOpportunities);

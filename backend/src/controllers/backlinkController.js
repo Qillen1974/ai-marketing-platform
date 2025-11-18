@@ -61,8 +61,30 @@ const discoverOpportunities = async (req, res) => {
       console.log(`📌 Using default keywords for discovery`);
     }
 
-    // Discover opportunities
-    const opportunities = await discoverBacklinkOpportunities(website.domain, keywords, campaignType);
+    // IMPROVEMENT B: Get user's backlink discovery settings
+    const settingsResult = await pool.query(
+      `SELECT min_domain_authority, max_domain_authority, min_difficulty, max_difficulty
+       FROM backlink_discovery_settings
+       WHERE user_id = $1`,
+      [userId]
+    );
+
+    let userSettings = null;
+    if (settingsResult.rows.length > 0) {
+      const settings = settingsResult.rows[0];
+      userSettings = {
+        minDomainAuthority: settings.min_domain_authority,
+        maxDomainAuthority: settings.max_domain_authority,
+        minDifficulty: settings.min_difficulty,
+        maxDifficulty: settings.max_difficulty,
+      };
+      console.log(`⚙️  Using user backlink settings: DA ${userSettings.minDomainAuthority}-${userSettings.maxDomainAuthority}, Difficulty ${userSettings.minDifficulty}-${userSettings.maxDifficulty}`);
+    } else {
+      console.log(`⚙️  No user settings found, using defaults`);
+    }
+
+    // Discover opportunities with user settings
+    const opportunities = await discoverBacklinkOpportunities(website.domain, keywords, campaignType, userSettings);
 
     if (opportunities.length === 0) {
       return res.status(200).json({
@@ -395,10 +417,160 @@ const getCampaignStats = async (req, res) => {
   }
 };
 
+// Get user's backlink discovery settings
+const getBacklinkSettings = async (req, res) => {
+  try {
+    const userId = req.user.userId;
+
+    // Try to get existing settings
+    const result = await pool.query(
+      `SELECT id, user_id, min_domain_authority, max_domain_authority,
+              min_difficulty, max_difficulty, min_traffic,
+              exclude_edu_gov, exclude_news_sites, created_at, updated_at
+       FROM backlink_discovery_settings
+       WHERE user_id = $1`,
+      [userId]
+    );
+
+    if (result.rows.length > 0) {
+      const settings = result.rows[0];
+      return res.json({
+        settings: {
+          minDomainAuthority: settings.min_domain_authority,
+          maxDomainAuthority: settings.max_domain_authority,
+          minDifficulty: settings.min_difficulty,
+          maxDifficulty: settings.max_difficulty,
+          minTraffic: settings.min_traffic,
+          excludeEduGov: settings.exclude_edu_gov,
+          excludeNewsSites: settings.exclude_news_sites,
+          createdAt: settings.created_at,
+          updatedAt: settings.updated_at,
+        },
+      });
+    }
+
+    // Return default settings if none exist
+    res.json({
+      settings: {
+        minDomainAuthority: 10,
+        maxDomainAuthority: 60,
+        minDifficulty: 20,
+        maxDifficulty: 70,
+        minTraffic: 0,
+        excludeEduGov: false,
+        excludeNewsSites: false,
+      },
+    });
+  } catch (error) {
+    console.error('Get backlink settings error:', error);
+    res.status(500).json({ error: 'Failed to fetch backlink settings' });
+  }
+};
+
+// Update user's backlink discovery settings
+const updateBacklinkSettings = async (req, res) => {
+  try {
+    const userId = req.user.userId;
+    const {
+      minDomainAuthority,
+      maxDomainAuthority,
+      minDifficulty,
+      maxDifficulty,
+      minTraffic,
+      excludeEduGov,
+      excludeNewsSites,
+    } = req.body;
+
+    // Validate inputs
+    if (!minDomainAuthority || !maxDomainAuthority || !minDifficulty || !maxDifficulty) {
+      return res.status(400).json({
+        error: 'Missing required fields: minDomainAuthority, maxDomainAuthority, minDifficulty, maxDifficulty',
+      });
+    }
+
+    // Validate ranges
+    if (maxDomainAuthority <= minDomainAuthority) {
+      return res.status(400).json({
+        error: 'Max Domain Authority must be greater than Min Domain Authority',
+      });
+    }
+
+    if (maxDifficulty <= minDifficulty) {
+      return res.status(400).json({
+        error: 'Max Difficulty must be greater than Min Difficulty',
+      });
+    }
+
+    // Validate value ranges
+    if (minDomainAuthority < 1 || maxDomainAuthority > 100) {
+      return res.status(400).json({
+        error: 'Domain Authority values must be between 1 and 100',
+      });
+    }
+
+    if (minDifficulty < 1 || maxDifficulty > 100) {
+      return res.status(400).json({
+        error: 'Difficulty values must be between 1 and 100',
+      });
+    }
+
+    // Upsert settings (insert or update)
+    const result = await pool.query(
+      `INSERT INTO backlink_discovery_settings
+       (user_id, min_domain_authority, max_domain_authority, min_difficulty, max_difficulty,
+        min_traffic, exclude_edu_gov, exclude_news_sites, created_at, updated_at)
+       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, NOW(), NOW())
+       ON CONFLICT (user_id) DO UPDATE SET
+       min_domain_authority = $2,
+       max_domain_authority = $3,
+       min_difficulty = $4,
+       max_difficulty = $5,
+       min_traffic = $6,
+       exclude_edu_gov = $7,
+       exclude_news_sites = $8,
+       updated_at = NOW()
+       RETURNING min_domain_authority, max_domain_authority, min_difficulty, max_difficulty,
+                 min_traffic, exclude_edu_gov, exclude_news_sites`,
+      [
+        userId,
+        minDomainAuthority,
+        maxDomainAuthority,
+        minDifficulty,
+        maxDifficulty,
+        minTraffic || 0,
+        excludeEduGov || false,
+        excludeNewsSites || false,
+      ]
+    );
+
+    const settings = result.rows[0];
+
+    console.log(`⚙️  Updated backlink settings for user ${userId}: DA ${settings.min_domain_authority}-${settings.max_domain_authority}, Difficulty ${settings.min_difficulty}-${settings.max_difficulty}`);
+
+    res.json({
+      message: 'Backlink discovery settings updated successfully',
+      settings: {
+        minDomainAuthority: settings.min_domain_authority,
+        maxDomainAuthority: settings.max_domain_authority,
+        minDifficulty: settings.min_difficulty,
+        maxDifficulty: settings.max_difficulty,
+        minTraffic: settings.min_traffic,
+        excludeEduGov: settings.exclude_edu_gov,
+        excludeNewsSites: settings.exclude_news_sites,
+      },
+    });
+  } catch (error) {
+    console.error('Update backlink settings error:', error);
+    res.status(500).json({ error: 'Failed to update backlink settings' });
+  }
+};
+
 module.exports = {
   discoverOpportunities,
   getOpportunities,
   getOpportunity,
   updateOpportunity,
   getCampaignStats,
+  getBacklinkSettings,
+  updateBacklinkSettings,
 };

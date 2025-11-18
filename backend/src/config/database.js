@@ -329,6 +329,24 @@ const initDatabase = async () => {
       CREATE INDEX IF NOT EXISTS idx_reddit_thread_engagements_website_id ON reddit_thread_engagements(website_id);
       CREATE INDEX IF NOT EXISTS idx_reddit_thread_engagements_thread_id ON reddit_thread_engagements(reddit_thread_id);
       CREATE INDEX IF NOT EXISTS idx_reddit_thread_engagements_status ON reddit_thread_engagements(status);
+
+      CREATE TABLE IF NOT EXISTS backlink_discovery_settings (
+        id SERIAL PRIMARY KEY,
+        user_id INTEGER NOT NULL UNIQUE REFERENCES users(id) ON DELETE CASCADE,
+        min_domain_authority INTEGER DEFAULT 10 CHECK (min_domain_authority >= 1 AND min_domain_authority <= 100),
+        max_domain_authority INTEGER DEFAULT 60 CHECK (max_domain_authority >= 1 AND max_domain_authority <= 100),
+        min_difficulty INTEGER DEFAULT 20 CHECK (min_difficulty >= 1 AND min_difficulty <= 100),
+        max_difficulty INTEGER DEFAULT 70 CHECK (max_difficulty >= 1 AND max_difficulty <= 100),
+        min_traffic INTEGER DEFAULT 0,
+        exclude_edu_gov BOOLEAN DEFAULT false,
+        exclude_news_sites BOOLEAN DEFAULT false,
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+        updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+        CONSTRAINT valid_da_range CHECK (min_domain_authority <= max_domain_authority),
+        CONSTRAINT valid_difficulty_range CHECK (min_difficulty <= max_difficulty)
+      );
+
+      CREATE INDEX IF NOT EXISTS idx_backlink_discovery_settings_user_id ON backlink_discovery_settings(user_id);
     `);
     console.log('Database schema initialized successfully');
   } catch (error) {
