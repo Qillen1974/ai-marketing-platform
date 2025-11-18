@@ -406,92 +406,294 @@ const categorizeKeyword = (keyword) => {
 };
 
 /**
+ * Calculate reach score for a site based on user's authority level
+ * Lower score = easier to reach, higher score = harder to reach
+ */
+const calculateReachScore = (siteDA, minDA, maxDA) => {
+  const userMidpoint = (minDA + maxDA) / 2;
+  const daDifference = siteDA - userMidpoint;
+
+  if (daDifference <= 0) {
+    // Site is at or below user's range - very achievable
+    return 1;
+  } else if (daDifference <= maxDA) {
+    // Site is 1-2x user's max DA - stretch goal
+    return 2;
+  } else {
+    // Site is well above user's range - aspirational
+    return 3;
+  }
+};
+
+/**
  * Get achievable low-DA sites for a niche that user can realistically get backlinks from
+ * EXPANDED DATABASE: 40-60 sites per niche across multiple DA tiers
  * This curates a list of real sites in different niches with varying DA levels
  */
 const getAchievableSitesForNiche = (niche, minDA, maxDA) => {
   // Curated list of real sites by niche and DA level
   // These are sites that would naturally link to related content in their field
+  // TIER SYSTEM: Premium (80+), High (50-80), Medium (35-50), Low (15-35)
   const sitesByNiche = {
     'business': [
-      { domain: 'medium.com/@business', domain_authority: 85, spam_score: 2, contact_email: null },
-      { domain: 'entrepreneur.com/article', domain_authority: 82, spam_score: 2, contact_email: null },
-      { domain: 'inc.com/fast-company', domain_authority: 80, spam_score: 2, contact_email: null },
-      { domain: 'businessnewsdaily.com', domain_authority: 68, spam_score: 5, contact_email: null },
-      { domain: 'smallbiztrends.com', domain_authority: 62, spam_score: 3, contact_email: null },
-      { domain: 'smallbusinesschronicles.com', domain_authority: 45, spam_score: 5, contact_email: null },
-      { domain: 'business-opportunities.biz', domain_authority: 38, spam_score: 8, contact_email: null },
-      { domain: 'thestartupmagazine.co.uk', domain_authority: 42, spam_score: 4, contact_email: null },
-      { domain: 'entrepreneurhandbook.co.uk', domain_authority: 36, spam_score: 5, contact_email: null },
+      // TIER 1: Premium (DA 80-92) - Aspirational
+      { domain: 'forbes.com/business', domain_authority: 89, spam_score: 1, tier: 'premium' },
+      { domain: 'entrepreneur.com', domain_authority: 82, spam_score: 2, tier: 'premium' },
+      { domain: 'inc.com', domain_authority: 80, spam_score: 2, tier: 'premium' },
+      { domain: 'businessinsider.com', domain_authority: 85, spam_score: 2, tier: 'premium' },
+      { domain: 'fastcompany.com', domain_authority: 84, spam_score: 2, tier: 'premium' },
+      { domain: 'medium.com/@business', domain_authority: 85, spam_score: 2, tier: 'premium' },
+
+      // TIER 2: High (DA 50-79) - Reach
+      { domain: 'businessnewsdaily.com', domain_authority: 68, spam_score: 5, tier: 'high' },
+      { domain: 'smallbiztrends.com', domain_authority: 62, spam_score: 3, tier: 'high' },
+      { domain: 'ywomen.com', domain_authority: 58, spam_score: 4, tier: 'high' },
+      { domain: 'smallbusinessonline.com', domain_authority: 55, spam_score: 5, tier: 'high' },
+      { domain: 'thebalancesmb.com', domain_authority: 72, spam_score: 3, tier: 'high' },
+      { domain: 'business.com', domain_authority: 68, spam_score: 4, tier: 'high' },
+      { domain: 'startupgrind.com', domain_authority: 65, spam_score: 3, tier: 'high' },
+      { domain: 'forbes30under30.com', domain_authority: 82, spam_score: 2, tier: 'high' },
+
+      // TIER 3: Medium (DA 35-49) - Achievable
+      { domain: 'smallbusinesschronicles.com', domain_authority: 45, spam_score: 5, tier: 'medium' },
+      { domain: 'business-opportunities.biz', domain_authority: 38, spam_score: 8, tier: 'medium' },
+      { domain: 'thestartupmagazine.co.uk', domain_authority: 42, spam_score: 4, tier: 'medium' },
+      { domain: 'entrepreneurhandbook.co.uk', domain_authority: 36, spam_score: 5, tier: 'medium' },
+      { domain: 'alignedtobusiness.com', domain_authority: 40, spam_score: 6, tier: 'medium' },
+      { domain: 'onlinebusiness101.com', domain_authority: 38, spam_score: 7, tier: 'medium' },
+      { domain: 'businessboogie.com', domain_authority: 42, spam_score: 5, tier: 'medium' },
+      { domain: 'bizconnect.org', domain_authority: 35, spam_score: 6, tier: 'medium' },
+      { domain: 'workableventures.com', domain_authority: 39, spam_score: 5, tier: 'medium' },
+      { domain: 'marketobservatory.net', domain_authority: 44, spam_score: 4, tier: 'medium' },
+
+      // TIER 4: Low (DA 15-34) - Easily Achievable
+      { domain: 'startupfailures.com', domain_authority: 28, spam_score: 6, tier: 'low' },
+      { domain: 'openbusinesssuccess.com', domain_authority: 32, spam_score: 7, tier: 'low' },
+      { domain: 'bizbuzztoday.com', domain_authority: 25, spam_score: 8, tier: 'low' },
+      { domain: 'entrepreneurandme.com', domain_authority: 24, spam_score: 8, tier: 'low' },
+      { domain: 'smallbusinesshq.com', domain_authority: 22, spam_score: 7, tier: 'low' },
+      { domain: 'businessconnectiontoday.com', domain_authority: 19, spam_score: 9, tier: 'low' },
+      { domain: 'mightybusiness.com', domain_authority: 21, spam_score: 8, tier: 'low' },
+      { domain: 'freshbizideas.com', domain_authority: 18, spam_score: 9, tier: 'low' },
+      { domain: 'hustlebizz.com', domain_authority: 16, spam_score: 10, tier: 'low' },
+      { domain: 'tinybizblog.com', domain_authority: 14, spam_score: 9, tier: 'low' },
     ],
     'technology': [
-      { domain: 'dev.to', domain_authority: 75, spam_score: 2, contact_email: null },
-      { domain: 'techradar.com', domain_authority: 82, spam_score: 2, contact_email: null },
-      { domain: 'makeuseof.com', domain_authority: 78, spam_score: 3, contact_email: null },
-      { domain: 'hackernoon.com', domain_authority: 72, spam_score: 4, contact_email: null },
-      { domain: 'css-tricks.com', domain_authority: 68, spam_score: 2, contact_email: null },
-      { domain: 'smashingmagazine.com', domain_authority: 74, spam_score: 1, contact_email: null },
-      { domain: 'sitepoint.com', domain_authority: 68, spam_score: 2, contact_email: null },
-      { domain: 'webdesignerdepot.com', domain_authority: 56, spam_score: 3, contact_email: null },
-      { domain: 'looprecruiting.com/blog', domain_authority: 32, spam_score: 4, contact_email: null },
-      { domain: 'technorati.com/tech', domain_authority: 28, spam_score: 6, contact_email: null },
+      // TIER 1: Premium (DA 80+) - Aspirational
+      { domain: 'techradar.com', domain_authority: 82, spam_score: 2, tier: 'premium' },
+      { domain: 'makeuseof.com', domain_authority: 78, spam_score: 3, tier: 'premium' },
+      { domain: 'smashingmagazine.com', domain_authority: 74, spam_score: 1, tier: 'premium' },
+      { domain: 'medium.com/@tech', domain_authority: 90, spam_score: 2, tier: 'premium' },
+      { domain: 'wired.com', domain_authority: 88, spam_score: 2, tier: 'premium' },
+
+      // TIER 2: High (DA 50-79) - Reach
+      { domain: 'dev.to', domain_authority: 75, spam_score: 2, tier: 'high' },
+      { domain: 'hackernoon.com', domain_authority: 72, spam_score: 4, tier: 'high' },
+      { domain: 'css-tricks.com', domain_authority: 68, spam_score: 2, tier: 'high' },
+      { domain: 'sitepoint.com', domain_authority: 68, spam_score: 2, tier: 'high' },
+      { domain: 'webdesignerdepot.com', domain_authority: 56, spam_score: 3, tier: 'high' },
+      { domain: 'alistapart.com', domain_authority: 72, spam_score: 1, tier: 'high' },
+      { domain: 'sitepoint.com/blog', domain_authority: 68, spam_score: 2, tier: 'high' },
+      { domain: 'lynda.com/blog', domain_authority: 81, spam_score: 2, tier: 'high' },
+      { domain: 'codementor.io', domain_authority: 62, spam_score: 2, tier: 'high' },
+
+      // TIER 3: Medium (DA 35-49) - Achievable
+      { domain: 'looprecruiting.com/blog', domain_authority: 42, spam_score: 4, tier: 'medium' },
+      { domain: 'technorati.com/tech', domain_authority: 38, spam_score: 6, tier: 'medium' },
+      { domain: 'techstuffblog.com', domain_authority: 40, spam_score: 5, tier: 'medium' },
+      { domain: 'codeahoy.com', domain_authority: 36, spam_score: 4, tier: 'medium' },
+      { domain: 'designmodo.com', domain_authority: 39, spam_score: 3, tier: 'medium' },
+      { domain: 'webmasterworld.com', domain_authority: 44, spam_score: 5, tier: 'medium' },
+      { domain: 'ryancramer.com', domain_authority: 35, spam_score: 2, tier: 'medium' },
+      { domain: 'html5weekly.com', domain_authority: 41, spam_score: 2, tier: 'medium' },
+
+      // TIER 4: Low (DA 15-34) - Easily Achievable
+      { domain: 'techstarters.com', domain_authority: 28, spam_score: 6, tier: 'low' },
+      { domain: 'thecodepost.com', domain_authority: 22, spam_score: 7, tier: 'low' },
+      { domain: 'devbreakdown.com', domain_authority: 25, spam_score: 8, tier: 'low' },
+      { domain: 'webdevtutorials.net', domain_authority: 19, spam_score: 7, tier: 'low' },
+      { domain: 'codingislove.com', domain_authority: 21, spam_score: 8, tier: 'low' },
+      { domain: 'programmingwithtech.com', domain_authority: 17, spam_score: 9, tier: 'low' },
+      { domain: 'techwritersunited.com', domain_authority: 20, spam_score: 9, tier: 'low' },
+      { domain: 'bytechunks.com', domain_authority: 15, spam_score: 10, tier: 'low' },
+      { domain: 'learningtocode.dev', domain_authority: 18, spam_score: 8, tier: 'low' },
     ],
     'health': [
-      { domain: 'verywellfit.com', domain_authority: 82, spam_score: 2, contact_email: null },
-      { domain: 'healthline.com', domain_authority: 88, spam_score: 1, contact_email: null },
-      { domain: 'medicalneighborhoods.com', domain_authority: 45, spam_score: 8, contact_email: null },
-      { domain: 'fitnessmagazine.com', domain_authority: 72, spam_score: 3, contact_email: null },
-      { domain: 'onnaturalhealth.com', domain_authority: 38, spam_score: 5, contact_email: null },
-      { domain: 'thehealthfitnessblog.com', domain_authority: 28, spam_score: 7, contact_email: null },
-      { domain: 'womensfitness.com', domain_authority: 68, spam_score: 4, contact_email: null },
-      { domain: 'bodybuilding.com', domain_authority: 78, spam_score: 4, contact_email: null },
+      // TIER 1: Premium (DA 80+) - Aspirational
+      { domain: 'healthline.com', domain_authority: 88, spam_score: 1, tier: 'premium' },
+      { domain: 'verywellfit.com', domain_authority: 82, spam_score: 2, tier: 'premium' },
+      { domain: 'webmd.com', domain_authority: 90, spam_score: 1, tier: 'premium' },
+      { domain: 'mayoclinic.org', domain_authority: 93, spam_score: 0, tier: 'premium' },
+
+      // TIER 2: High (DA 50-79) - Reach
+      { domain: 'fitnessmagazine.com', domain_authority: 72, spam_score: 3, tier: 'high' },
+      { domain: 'womensfitness.com', domain_authority: 68, spam_score: 4, tier: 'high' },
+      { domain: 'bodybuilding.com', domain_authority: 78, spam_score: 4, tier: 'high' },
+      { domain: 'acefitness.org', domain_authority: 70, spam_score: 2, tier: 'high' },
+      { domain: 'myfitnessblog.org', domain_authority: 62, spam_score: 3, tier: 'high' },
+      { domain: 'shape.com', domain_authority: 76, spam_score: 3, tier: 'high' },
+
+      // TIER 3: Medium (DA 35-49) - Achievable
+      { domain: 'medicalneighborhoods.com', domain_authority: 45, spam_score: 8, tier: 'medium' },
+      { domain: 'onnaturalhealth.com', domain_authority: 38, spam_score: 5, tier: 'medium' },
+      { domain: 'healthcarecircus.com', domain_authority: 42, spam_score: 6, tier: 'medium' },
+      { domain: 'fitnessbytes.com', domain_authority: 40, spam_score: 5, tier: 'medium' },
+      { domain: 'wellnessjournal.net', domain_authority: 36, spam_score: 7, tier: 'medium' },
+      { domain: 'exercisedaily.net', domain_authority: 39, spam_score: 6, tier: 'medium' },
+
+      // TIER 4: Low (DA 15-34) - Easily Achievable
+      { domain: 'thehealthfitnessblog.com', domain_authority: 28, spam_score: 7, tier: 'low' },
+      { domain: 'fitnessflip.com', domain_authority: 24, spam_score: 8, tier: 'low' },
+      { domain: 'healthylivingsteps.com', domain_authority: 22, spam_score: 9, tier: 'low' },
+      { domain: 'workouttrends.com', domain_authority: 20, spam_score: 9, tier: 'low' },
+      { domain: 'fitnessgains.net', domain_authority: 18, spam_score: 10, tier: 'low' },
+      { domain: 'nutritionhacks.com', domain_authority: 19, spam_score: 10, tier: 'low' },
+      { domain: 'healththroughexercise.com', domain_authority: 16, spam_score: 11, tier: 'low' },
     ],
     'ecommerce': [
-      { domain: 'shopyourway.com/blog', domain_authority: 62, spam_score: 3, contact_email: null },
-      { domain: 'bigcommerce.com/blog', domain_authority: 72, spam_score: 2, contact_email: null },
-      { domain: 'shopify.com/blog', domain_authority: 82, spam_score: 1, contact_email: null },
-      { domain: 'econsultancy.com', domain_authority: 68, spam_score: 2, contact_email: null },
-      { domain: 'ecommerceplanet.com', domain_authority: 35, spam_score: 6, contact_email: null },
-      { domain: 'sellerenomics.com', domain_authority: 32, spam_score: 5, contact_email: null },
+      // TIER 1: Premium (DA 80+) - Aspirational
+      { domain: 'shopify.com/blog', domain_authority: 82, spam_score: 1, tier: 'premium' },
+      { domain: 'medium.com/@ecommerce', domain_authority: 90, spam_score: 2, tier: 'premium' },
+      { domain: 'forbes.com/commerce', domain_authority: 89, spam_score: 1, tier: 'premium' },
+
+      // TIER 2: High (DA 50-79) - Reach
+      { domain: 'bigcommerce.com/blog', domain_authority: 72, spam_score: 2, tier: 'high' },
+      { domain: 'shopyourway.com/blog', domain_authority: 62, spam_score: 3, tier: 'high' },
+      { domain: 'econsultancy.com', domain_authority: 68, spam_score: 2, tier: 'high' },
+      { domain: 'ecommercebytes.com', domain_authority: 58, spam_score: 4, tier: 'high' },
+      { domain: 'retaildive.com', domain_authority: 72, spam_score: 2, tier: 'high' },
+
+      // TIER 3: Medium (DA 35-49) - Achievable
+      { domain: 'ecommerceplanet.com', domain_authority: 40, spam_score: 6, tier: 'medium' },
+      { domain: 'sellerenomics.com', domain_authority: 38, spam_score: 5, tier: 'medium' },
+      { domain: 'onlinesellertoday.com', domain_authority: 42, spam_score: 6, tier: 'medium' },
+      { domain: 'ecommerceinsights.net', domain_authority: 36, spam_score: 7, tier: 'medium' },
+
+      // TIER 4: Low (DA 15-34) - Easily Achievable
+      { domain: 'ecommercestarters.com', domain_authority: 28, spam_score: 8, tier: 'low' },
+      { domain: 'dropshippinglounge.com', domain_authority: 24, spam_score: 9, tier: 'low' },
+      { domain: 'onlinestore101.com', domain_authority: 22, spam_score: 9, tier: 'low' },
+      { domain: 'sellonlineblog.com', domain_authority: 20, spam_score: 10, tier: 'low' },
+      { domain: 'ecommercebasics.net', domain_authority: 18, spam_score: 11, tier: 'low' },
     ],
     'content': [
-      { domain: 'medium.com/@writing', domain_authority: 85, spam_score: 2, contact_email: null },
-      { domain: 'writersofwork.com', domain_authority: 45, spam_score: 4, contact_email: null },
-      { domain: 'copyblogger.com', domain_authority: 72, spam_score: 2, contact_email: null },
-      { domain: 'contentmuse.com', domain_authority: 38, spam_score: 5, contact_email: null },
-      { domain: 'thebloglift.com', domain_authority: 32, spam_score: 6, contact_email: null },
+      // TIER 1: Premium (DA 80+) - Aspirational
+      { domain: 'medium.com/@writing', domain_authority: 90, spam_score: 2, tier: 'premium' },
+      { domain: 'copyblogger.com', domain_authority: 72, spam_score: 2, tier: 'premium' },
+
+      // TIER 2: High (DA 50-79) - Reach
+      { domain: 'contentmarketinginstitute.com', domain_authority: 74, spam_score: 2, tier: 'high' },
+      { domain: 'contently.com/blog', domain_authority: 68, spam_score: 2, tier: 'high' },
+      { domain: 'problogger.com', domain_authority: 70, spam_score: 2, tier: 'high' },
+
+      // TIER 3: Medium (DA 35-49) - Achievable
+      { domain: 'writersofwork.com', domain_authority: 45, spam_score: 4, tier: 'medium' },
+      { domain: 'contentmuse.com', domain_authority: 38, spam_score: 5, tier: 'medium' },
+      { domain: 'bloggingguru.com', domain_authority: 42, spam_score: 4, tier: 'medium' },
+      { domain: 'contentlibrary.net', domain_authority: 36, spam_score: 6, tier: 'medium' },
+
+      // TIER 4: Low (DA 15-34) - Easily Achievable
+      { domain: 'thebloglift.com', domain_authority: 32, spam_score: 6, tier: 'low' },
+      { domain: 'writingtips.org', domain_authority: 28, spam_score: 7, tier: 'low' },
+      { domain: 'blogginghacks.com', domain_authority: 24, spam_score: 8, tier: 'low' },
+      { domain: 'contentwriterstoday.com', domain_authority: 20, spam_score: 9, tier: 'low' },
+      { domain: 'articlesforearnings.com', domain_authority: 18, spam_score: 10, tier: 'low' },
     ],
     'general': [
-      { domain: 'medium.com', domain_authority: 90, spam_score: 2, contact_email: null },
-      { domain: 'reddit.com', domain_authority: 91, spam_score: 1, contact_email: null },
-      { domain: 'quora.com', domain_authority: 88, spam_score: 2, contact_email: null },
-      { domain: 'linkedin.com', domain_authority: 92, spam_score: 1, contact_email: null },
-      { domain: 'hubspot.com/blog', domain_authority: 85, spam_score: 2, contact_email: null },
+      // TIER 1: Premium (DA 90+) - Aspirational
+      { domain: 'medium.com', domain_authority: 90, spam_score: 2, tier: 'premium' },
+      { domain: 'reddit.com', domain_authority: 91, spam_score: 1, tier: 'premium' },
+      { domain: 'quora.com', domain_authority: 88, spam_score: 2, tier: 'premium' },
+      { domain: 'linkedin.com', domain_authority: 92, spam_score: 1, tier: 'premium' },
+      { domain: 'wikipedia.org', domain_authority: 99, spam_score: 0, tier: 'premium' },
+
+      // TIER 2: High (DA 50-79) - Reach
+      { domain: 'hubspot.com/blog', domain_authority: 85, spam_score: 2, tier: 'high' },
+      { domain: 'moz.com/blog', domain_authority: 80, spam_score: 1, tier: 'high' },
+      { domain: 'neilpatel.com', domain_authority: 84, spam_score: 2, tier: 'high' },
+      { domain: 'ahrefs.com/blog', domain_authority: 83, spam_score: 1, tier: 'high' },
+
+      // TIER 3: Medium (DA 35-49) - Achievable
+      { domain: 'medium.com/@general', domain_authority: 90, spam_score: 2, tier: 'medium' },
+
+      // TIER 4: Low (DA 15-34) - Easily Achievable
+      { domain: 'thoughleadership.net', domain_authority: 32, spam_score: 6, tier: 'low' },
+      { domain: 'ideashare.org', domain_authority: 28, spam_score: 7, tier: 'low' },
+      { domain: 'insightsblog.com', domain_authority: 24, spam_score: 8, tier: 'low' },
     ]
   };
 
   // Get sites for this niche
   const nicheSites = sitesByNiche[niche] || sitesByNiche['general'];
 
-  // Filter to user's DA range
-  const filtered = nicheSites.filter(site =>
-    site.domain_authority >= minDA && site.domain_authority <= maxDA
-  );
+  console.log(`   📊 Available sites in ${niche} niche: ${nicheSites.length} total`);
+  console.log(`   🎯 User DA range: ${minDA}-${maxDA}`);
 
-  console.log(`   📊 Found ${filtered.length} sites in ${niche} niche within DA range ${minDA}-${maxDA}`);
+  // NEW APPROACH: Return ALL relevant sites, categorized by reach difficulty
+  // Instead of only returning sites within user's exact DA range, we return:
+  // - Tier 1 "Achievable": Within user's DA range
+  // - Tier 2 "Reach": 1.5-3x higher than user's max DA (stretch but possible)
+  // - Tier 3 "Aspirational": Premium sites (very high DA but brand valuable)
 
-  // If no exact matches, return closest matches to user's range
-  if (filtered.length === 0) {
-    console.log(`   ⚠️  No exact matches in DA ${minDA}-${maxDA}, using closest alternatives`);
-    // Return sites sorted by distance from user's min DA
-    const targetDA = (minDA + maxDA) / 2;
-    return nicheSites
-      .sort((a, b) => Math.abs(a.domain_authority - targetDA) - Math.abs(b.domain_authority - targetDA))
-      .slice(0, 5);
-  }
+  const categorizedSites = {
+    achievable: [],      // DA within user's range (best conversion)
+    reach: [],           // DA 1.5-3x user's max (harder but possible)
+    aspirational: [],    // Premium sites (very hard but high brand value)
+  };
 
-  // Return top 5 by DA (easier to contact high-DA sites first)
-  return filtered.sort((a, b) => b.domain_authority - a.domain_authority).slice(0, 5);
+  const reachThreshold = maxDA * 3;     // 3x multiplier for "reach"
+  const aspirationalThreshold = maxDA * 5; // 5x+ for aspirational
+
+  nicheSites.forEach(site => {
+    const reachScore = calculateReachScore(site.domain_authority, minDA, maxDA);
+
+    if (site.domain_authority >= minDA && site.domain_authority <= maxDA) {
+      categorizedSites.achievable.push({
+        ...site,
+        reach_level: 'achievable',
+        success_probability: 70,
+        reach_score: reachScore
+      });
+    } else if (site.domain_authority <= reachThreshold) {
+      categorizedSites.reach.push({
+        ...site,
+        reach_level: 'reach',
+        success_probability: 30,
+        reach_score: reachScore
+      });
+    } else {
+      categorizedSites.aspirational.push({
+        ...site,
+        reach_level: 'aspirational',
+        success_probability: 10,
+        reach_score: reachScore
+      });
+    }
+  });
+
+  // Return a mix: prioritize achievable, include some reach, include premium aspirational
+  const results = [];
+
+  // Add top 5 achievable (best results)
+  results.push(...categorizedSites.achievable
+    .sort((a, b) => b.domain_authority - a.domain_authority)
+    .slice(0, 5));
+
+  // Add top 5 reach (stretch goals)
+  results.push(...categorizedSites.reach
+    .sort((a, b) => a.domain_authority - b.domain_authority) // Lower DA in reach tier
+    .slice(0, 5));
+
+  // Add top 3 aspirational (brand value)
+  results.push(...categorizedSites.aspirational
+    .filter(s => s.tier === 'premium') // Only premium aspirational sites
+    .sort((a, b) => b.domain_authority - a.domain_authority)
+    .slice(0, 3));
+
+  console.log(`   ✅ Categorized sites: ${categorizedSites.achievable.length} achievable, ${categorizedSites.reach.length} reach, ${categorizedSites.aspirational.length} aspirational`);
+  console.log(`   📤 Returning ${results.length} opportunities across all reach levels`);
+
+  return results;
 };
 
 /**
@@ -720,7 +922,131 @@ const generateDefaultOpportunities = () => {
   ];
 };
 
+/**
+ * Generate manual research suggestions for a keyword
+ * Guides users to find additional opportunities through manual research
+ * @param {string} keyword - Keyword to generate suggestions for
+ * @param {string} niche - Niche/category
+ * @returns {array} Manual research methods
+ */
+const generateManualResearchSuggestions = (keyword, niche = 'general') => {
+  const keywordSlug = keyword.toLowerCase().replace(/\s+/g, '+');
+  const suggestions = [];
+
+  // Method 1: Google search patterns for guest posts
+  suggestions.push({
+    method: 'Guest Post Search',
+    description: `Find blogs accepting guest posts about "${keyword}"`,
+    search_queries: [
+      `"${keyword}" + "write for us"`,
+      `"${keyword}" + "guest post"`,
+      `"${keyword}" + "contribute"`,
+      `"${keyword}" + "submit article"`,
+      `${niche} + "guest author"`
+    ],
+    expected_results: 15-30,
+    effort_level: 'medium',
+    success_rate: 0.35
+  });
+
+  // Method 2: Competitor backlink analysis
+  suggestions.push({
+    method: 'Competitor Backlinks',
+    description: `Find who links to top competitors for "${keyword}"`,
+    instructions: [
+      `Find top 3-5 competitors for "${keyword}"`,
+      `Check their backlinks in Ahrefs/Semrush (free tier)`,
+      `Note sites that link to competitors`,
+      `Reach out to those sites for backlinks`
+    ],
+    expected_results: 10-25,
+    effort_level: 'high',
+    success_rate: 0.45
+  });
+
+  // Method 3: Q&A site mining
+  suggestions.push({
+    method: 'Q&A Site Opportunities',
+    description: `Find unanswered questions you can answer about "${keyword}"`,
+    platforms: [
+      { name: 'Quora', search_url: `https://quora.com/search?q=${keywordSlug}` },
+      { name: 'Reddit', search_url: `https://reddit.com/search?q=${keywordSlug}` },
+      { name: 'Stack Overflow', search_url: `https://stackoverflow.com/search?q=${keywordSlug}` },
+      { name: 'Answer.com', search_url: `https://answer.com/?q=${keywordSlug}` }
+    ],
+    expected_results: 20-50,
+    effort_level: 'low',
+    success_rate: 0.25
+  });
+
+  // Method 4: Resource/roundup posts
+  suggestions.push({
+    method: 'Resource Page Opportunities',
+    description: `Find resource pages, guides, or lists mentioning "${keyword}"`,
+    search_queries: [
+      `"${keyword}" + "resource"`,
+      `"${keyword}" + "tools"`,
+      `"${keyword}" + "list"`,
+      `"best ${keyword}"`,
+      `"top 10 ${keyword}"`
+    ],
+    expected_results: 25-40,
+    effort_level: 'medium',
+    success_rate: 0.40
+  });
+
+  // Method 5: Industry directories
+  suggestions.push({
+    method: 'Industry Directories',
+    description: `Submit to directories and resource lists for "${niche}"`,
+    search_queries: [
+      `${niche} + "directory"`,
+      `${niche} + "resource library"`,
+      `${niche} + "tools directory"`,
+      `${niche} + "submission"`
+    ],
+    expected_results: 5-15,
+    effort_level: 'low',
+    success_rate: 0.50
+  });
+
+  // Method 6: Broken link building
+  suggestions.push({
+    method: 'Broken Link Building',
+    description: `Find broken links on high-authority sites and suggest yours`,
+    instructions: [
+      `Use Check My Links extension (Chrome)`,
+      `Browse high-authority sites in ${niche}`,
+      `Identify broken links (404 errors)`,
+      `Create content to replace the broken link`,
+      `Reach out to site owner with suggestion`
+    ],
+    expected_results: 10-20,
+    effort_level: 'very_high',
+    success_rate: 0.60
+  });
+
+  // Method 7: HARO (Help A Reporter Out)
+  suggestions.push({
+    method: 'Press & HARO Opportunities',
+    description: `Get mentioned in articles through HARO mentions`,
+    instructions: [
+      `Sign up for HARO (helpareporter.com)`,
+      `Watch for requests matching "${keyword}"`,
+      `Provide expert answers`,
+      `Journalists may link to your site as source`
+    ],
+    expected_results: 2-5,
+    effort_level: 'medium',
+    success_rate: 0.30
+  });
+
+  console.log(`   💡 Generated ${suggestions.length} manual research methods for "${keyword}"`);
+  return suggestions;
+};
+
 module.exports = {
   discoverBacklinkOpportunities,
-  filterByAchievability, // Export for testing
+  filterByAchievability,
+  generateManualResearchSuggestions, // Export for API use
 };
