@@ -40,20 +40,33 @@ const getKeywordMetrics = async (keyword) => {
     const data = response.data;
 
     // Extract metrics from Serper response
+    // NOTE: searchParameters.num is results PER PAGE (10-100), NOT total results!
+    // Total results should be estimated from actual results returned or use approximation
+    // Google doesn't expose exact total results, but we can estimate from the data
+    const totalResults = data.searchResults || data.searchParameters?.totalResults || 0;
+
+    // If we don't have a total, estimate from number of organic results * typical position
+    const estimatedTotalResults = totalResults > 0
+      ? totalResults
+      : (data.organic ? data.organic.length * 100 : 100000); // Rough estimate
+
+    console.log(`🔍 Serper API for "${keyword}": Got ${estimatedTotalResults} estimated results`);
+
+    // Extract metrics from Serper response
     const metrics = {
       keyword,
-      searchResults: data.searchParameters?.num || 0,
+      searchResults: estimatedTotalResults,
       answerBox: data.answerBox ? true : false,
       knowledge: data.knowledge ? true : false,
       ads: data.ads ? data.ads.length : 0,
 
       // Estimate difficulty based on number of results
       // This is a rough estimate (Serper's free tier doesn't provide difficulty directly)
-      difficulty: estimateDifficulty(data.searchParameters?.num || 0),
+      difficulty: estimateDifficulty(estimatedTotalResults),
 
       // Estimate search volume based on result count and authority
       // Serper doesn't provide volume directly, so we estimate
-      estimatedVolume: estimateSearchVolume(data.searchParameters?.num || 0),
+      estimatedVolume: estimateSearchVolume(estimatedTotalResults),
 
       // CPC is not available from free API, but we can estimate
       estimatedCPC: estimateCPC(keyword),
