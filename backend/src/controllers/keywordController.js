@@ -117,7 +117,7 @@ const addKeyword = async (req, res) => {
   try {
     const userId = req.user.userId;
     const { websiteId } = req.params;
-    const { keyword } = req.body;
+    const { keyword, searchVolume, difficulty } = req.body;
 
     if (!keyword) {
       return res.status(400).json({ error: 'Keyword is required' });
@@ -135,23 +135,29 @@ const addKeyword = async (req, res) => {
 
     console.log(`📝 Adding keyword: "${keyword}"`);
 
-    // Fetch real metrics from Serper API for accurate difficulty
-    console.log(`📊 Fetching real metrics from Serper API for: "${keyword}"`);
-    const metrics = await getKeywordMetrics(keyword);
+    let finalSearchVolume = searchVolume;
+    let finalDifficulty = difficulty;
 
-    const searchVolume = metrics.estimatedVolume;
-    const difficulty = metrics.difficulty;
+    // If metrics provided from frontend (suggestions), use those
+    // Otherwise fetch fresh metrics from Serper API
+    if (searchVolume && difficulty) {
+      console.log(`✅ Using provided metrics - Volume: ${searchVolume}, Difficulty: ${difficulty}`);
+    } else {
+      console.log(`📊 Fetching real metrics from Serper API for: "${keyword}"`);
+      const metrics = await getKeywordMetrics(keyword);
+      finalSearchVolume = metrics.estimatedVolume;
+      finalDifficulty = metrics.difficulty;
+      console.log(`✅ Metrics fetched - Volume: ${finalSearchVolume}, Difficulty: ${finalDifficulty}`);
+    }
 
-    console.log(`✅ Metrics fetched - Volume: ${searchVolume}, Difficulty: ${difficulty}`);
-
-    // Add keyword with real metrics
+    // Add keyword with metrics
     const result = await pool.query(
       `INSERT INTO keywords (website_id, keyword, search_volume, difficulty)
        VALUES ($1, $2, $3, $4)
        ON CONFLICT (website_id, keyword) DO UPDATE
        SET search_volume = $3, difficulty = $4, last_updated = NOW()
        RETURNING id, keyword, search_volume, difficulty`,
-      [websiteId, keyword.toLowerCase(), searchVolume, difficulty]
+      [websiteId, keyword.toLowerCase(), finalSearchVolume, finalDifficulty]
     );
 
     const addedKeyword = result.rows[0];

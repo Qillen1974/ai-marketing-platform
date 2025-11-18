@@ -219,8 +219,14 @@ export default function WebsiteDetailsPage({
 
   const handleAddSuggestedKeyword = async (keyword: string) => {
     try {
+      // Find the suggested keyword to get its metrics
+      const suggestedKeyword = suggestedKeywords.find(kw => kw.keyword === keyword);
+
       const response = await api.post(`/keywords/${params.id}`, {
         keyword: keyword,
+        // Pass the metrics from suggestions to maintain consistency
+        searchVolume: suggestedKeyword?.searchVolume,
+        difficulty: suggestedKeyword?.difficulty,
       });
 
       // Add the new keyword to the list
