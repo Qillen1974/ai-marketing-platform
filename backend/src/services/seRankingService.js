@@ -4,15 +4,15 @@ const axios = require('axios');
 // Gets real backlink data from SE Ranking's Backlinks API
 // Replaces mock/estimated data with actual research
 //
-// API Documentation: https://seranking.com/api/
+// API Documentation: https://seranking.com/api/data/backlinks/
+// Base URL: https://api.seranking.com/v1 (Data API)
 // Authentication: Token-based (Authorization: Token {key})
 //
-// Supports two API key types:
-// - SE_RANKING_API_KEY: Data API key (for /v1/backlinks endpoint)
-// - SE_RANKING_PROJECT_API_KEY: Project API key (for /v3/backlinks endpoint)
+// NOTE: Only using Data API key for backlinks
+// Project API key doesn't have backlinks access in v3
+// Use SE_RANKING_API_KEY for backlinks (Data API)
 
-const SE_RANKING_DATA_API_BASE = 'https://api.seranking.com/v1';
-const SE_RANKING_PROJECT_API_BASE = 'https://api.seranking.com/v3';
+const SE_RANKING_API_BASE = 'https://api.seranking.com/v1';
 
 /**
  * Get backlinks for a domain from SE Ranking API
@@ -21,11 +21,11 @@ const SE_RANKING_PROJECT_API_BASE = 'https://api.seranking.com/v3';
  */
 const getBacklinksForDomain = async (domain) => {
   try {
-    // Try Project API key first (recommended), fall back to Data API key
-    const apiKey = process.env.SE_RANKING_PROJECT_API_KEY || process.env.SE_RANKING_API_KEY;
+    // Use Data API key for backlinks (only Data API has backlinks feature)
+    const apiKey = process.env.SE_RANKING_API_KEY;
 
     if (!apiKey) {
-      console.warn('⚠️  SE Ranking API key not configured (need SE_RANKING_PROJECT_API_KEY or SE_RANKING_API_KEY)');
+      console.warn('⚠️  SE Ranking Data API key not configured (need SE_RANKING_API_KEY)');
       return null;
     }
 
@@ -33,52 +33,24 @@ const getBacklinksForDomain = async (domain) => {
       `${apiKey.substring(0, 8)}...${apiKey.substring(apiKey.length - 5)}` :
       'NOT SET';
 
-    // Determine which API endpoint to use based on key type
-    const isProjectKey = !!process.env.SE_RANKING_PROJECT_API_KEY;
-    const apiBase = isProjectKey ? SE_RANKING_PROJECT_API_BASE : SE_RANKING_DATA_API_BASE;
-    const keyType = isProjectKey ? 'Project' : 'Data';
+    console.log(`🔍 Fetching backlinks from SE Ranking for: ${domain} (Data API, key: ${keyMasked})`);
 
-    console.log(`🔍 Fetching backlinks from SE Ranking for: ${domain} (${keyType} API, key: ${keyMasked})`);
+    // SE Ranking Data API documentation: https://seranking.com/api/data/backlinks/
+    // Base URL: https://api.seranking.com/v1
+    // Using /backlinks/summary endpoint for domain backlink data
+    const endpoint = `${SE_RANKING_API_BASE}/backlinks/summary`;
 
-    // SE Ranking API uses "Token" authentication format (from their documentation)
-    // https://seranking.com/api/
-    // Try different endpoint paths as SE Ranking might use different naming
-    const possibleEndpoints = [
-      `${apiBase}/backlinks`,
-      `${apiBase}/seo/backlinks`,
-      `${apiBase}/domains/backlinks`,
-      `${apiBase}/backlink-checker`,
-    ];
-
-    let response = null;
-    let lastError = null;
-
-    for (const endpoint of possibleEndpoints) {
-      try {
-        console.log(`  🔄 Trying endpoint: ${endpoint}`);
-        response = await axios.get(endpoint, {
-          params: {
-            target: domain,
-            limit: 100,
-          },
-          headers: {
-            'Authorization': `Token ${apiKey}`,
-            'Content-Type': 'application/json',
-          },
-          timeout: 15000,
-        });
-        console.log(`  ✅ Success with endpoint: ${endpoint}`);
-        break;
-      } catch (err) {
-        lastError = err;
-        console.log(`  ❌ Failed: ${err.response?.status || err.message}`);
-        continue;
-      }
-    }
-
-    if (!response) {
-      throw lastError || new Error('All endpoint variations failed');
-    }
+    const response = await axios.get(endpoint, {
+      params: {
+        target: domain,
+        // SE Ranking supports either Authorization header OR apikey query param
+      },
+      headers: {
+        'Authorization': `Token ${apiKey}`,
+        'Content-Type': 'application/json',
+      },
+      timeout: 15000,
+    });
 
     if (!response.data || !response.data.backlinks) {
       console.log(`⚠️  No backlink data returned for ${domain}`);
