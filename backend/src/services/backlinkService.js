@@ -397,12 +397,24 @@ const filterByAchievability = (opportunities, userSettings = null) => {
   console.log(`✅ Filtered to ${filtered.length} achievable opportunities (from ${opportunities.length})`);
 
   if (filtered.length === 0) {
-    console.log(`⚠️  No achievable opportunities found in specified range. Returning all filtered by spam score only.`);
-    // Fallback: return at least the low-spam opportunities
-    return opportunities
+    console.log(`⚠️  No achievable opportunities found in specified range. Using fallback: low-spam opportunities that still respect DA settings.`);
+    // Fallback: return low-spam opportunities, but STILL respect user's DA range
+    const fallback = opportunities
       .filter(opp => opp.spam_score <= 30)
+      .filter(opp => {
+        // Still respect min/max DA even in fallback
+        return opp.domain_authority >= minDA && opp.domain_authority <= maxDA;
+      })
       .sort((a, b) => a.difficulty_score - b.difficulty_score)
       .slice(0, 10);
+
+    if (fallback.length > 0) {
+      console.log(`  ✅ Fallback found ${fallback.length} opportunities respecting DA ${minDA}-${maxDA}`);
+      return fallback;
+    }
+
+    console.log(`  ⚠️  Fallback also found 0 opportunities. Your DA range (${minDA}-${maxDA}) may be too restrictive. Returning empty array.`);
+    return [];
   }
 
   return filtered;
