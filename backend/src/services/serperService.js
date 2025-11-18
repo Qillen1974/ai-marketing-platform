@@ -24,7 +24,8 @@ const getKeywordMetrics = async (keyword) => {
       SERPER_API_URL,
       {
         q: keyword,
-        type: 'news', // Get search results to analyze
+        // Note: Do NOT use type: 'news' - it returns fewer results!
+        // Use default organic search to get realistic competition levels
       },
       {
         headers: {
