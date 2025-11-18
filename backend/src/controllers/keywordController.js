@@ -190,9 +190,56 @@ const getSuggestedKeywords = async (req, res) => {
   }
 };
 
+// Delete a keyword from tracking
+const deleteKeyword = async (req, res) => {
+  try {
+    const userId = req.user.userId;
+    const { websiteId, keywordId } = req.params;
+
+    // Verify website ownership
+    const websiteResult = await pool.query(
+      'SELECT id FROM websites WHERE id = $1 AND user_id = $2',
+      [websiteId, userId]
+    );
+
+    if (websiteResult.rows.length === 0) {
+      return res.status(404).json({ error: 'Website not found' });
+    }
+
+    // Verify keyword belongs to this website
+    const keywordResult = await pool.query(
+      'SELECT id, keyword FROM keywords WHERE id = $1 AND website_id = $2',
+      [keywordId, websiteId]
+    );
+
+    if (keywordResult.rows.length === 0) {
+      return res.status(404).json({ error: 'Keyword not found' });
+    }
+
+    const keyword = keywordResult.rows[0];
+
+    // Delete keyword (cascades to keyword_rankings and ranking_history)
+    await pool.query(
+      'DELETE FROM keywords WHERE id = $1',
+      [keywordId]
+    );
+
+    console.log(`🗑️  Keyword deleted: "${keyword.keyword}" (ID: ${keywordId}) from website ${websiteId}`);
+
+    res.json({
+      message: 'Keyword removed successfully',
+      deletedKeyword: keyword.keyword,
+    });
+  } catch (error) {
+    console.error('Delete keyword error:', error);
+    res.status(500).json({ error: 'Failed to delete keyword' });
+  }
+};
+
 module.exports = {
   getKeywordResearch,
   getWebsiteKeywords,
   addKeyword,
   getSuggestedKeywords,
+  deleteKeyword,
 };

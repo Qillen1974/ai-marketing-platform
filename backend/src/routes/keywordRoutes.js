@@ -5,6 +5,7 @@ const {
   getWebsiteKeywords,
   addKeyword,
   getSuggestedKeywords,
+  deleteKeyword,
 } = require('../controllers/keywordController');
 const { authMiddleware } = require('../middleware/auth');
 
@@ -15,5 +16,6 @@ router.get('/:websiteId/suggestions', getSuggestedKeywords);
 router.get('/:websiteId/research', getKeywordResearch);
 router.get('/:websiteId', getWebsiteKeywords);
 router.post('/:websiteId', addKeyword);
+router.delete('/:websiteId/:keywordId', deleteKeyword);
 
 module.exports = router;

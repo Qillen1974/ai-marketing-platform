@@ -235,6 +235,24 @@ export default function WebsiteDetailsPage({
     }
   };
 
+  const handleDeleteKeyword = async (keywordId: number, keywordName: string) => {
+    // Confirm before deleting
+    if (!window.confirm(`Are you sure you want to remove "${keywordName}" from tracking?`)) {
+      return;
+    }
+
+    try {
+      await api.delete(`/keywords/${params.id}/${keywordId}`);
+
+      // Remove the keyword from the list
+      setKeywords(keywords.filter(kw => kw.id !== keywordId));
+
+      toast.success(`Removed "${keywordName}" from tracking`);
+    } catch (error: any) {
+      toast.error(error.response?.data?.error || 'Failed to delete keyword');
+    }
+  };
+
   if (!token) return null;
   if (loading) {
     return <div className="flex items-center justify-center min-h-screen">Loading...</div>;
@@ -468,6 +486,9 @@ export default function WebsiteDetailsPage({
                       <th className="px-6 py-3 text-left text-sm font-semibold text-gray-700">
                         Trend
                       </th>
+                      <th className="px-6 py-3 text-center text-sm font-semibold text-gray-700">
+                        Action
+                      </th>
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-gray-200">
@@ -497,6 +518,15 @@ export default function WebsiteDetailsPage({
                           >
                             {kw.trend}
                           </span>
+                        </td>
+                        <td className="px-6 py-4 text-sm text-center">
+                          <button
+                            onClick={() => handleDeleteKeyword(kw.id, kw.keyword)}
+                            className="text-red-600 hover:text-red-800 hover:bg-red-50 px-2 py-1 rounded transition"
+                            title="Delete keyword"
+                          >
+                            🗑️ Delete
+                          </button>
                         </td>
                       </tr>
                     ))}
