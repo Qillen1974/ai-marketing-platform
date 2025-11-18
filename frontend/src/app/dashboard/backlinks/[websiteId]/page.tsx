@@ -81,9 +81,18 @@ export default function OpportunitiesPage({
       if (filters.type) params.append('type', filters.type);
       if (filters.difficulty) params.append('difficulty', filters.difficulty);
 
+      console.log(`📋 Frontend: Fetching opportunities for website ${websiteId}`);
+      console.log(`🔍 Frontend: Query params: ${params.toString()}`);
+
       const response = await api.get(`/backlinks/${websiteId}/opportunities?${params.toString()}`);
+
+      console.log(`📊 Frontend: Received ${response.data.opportunities?.length || 0} opportunities`);
+      console.log(`📝 Frontend: Response data:`, response.data);
+
       setOpportunities(response.data.opportunities);
+      console.log(`✅ Frontend: State updated with ${response.data.opportunities?.length || 0} opportunities`);
     } catch (error: any) {
+      console.error(`❌ Frontend: Error loading opportunities:`, error);
       toast.error('Failed to load opportunities');
     } finally {
       setLoading(false);
@@ -145,6 +154,10 @@ export default function OpportunitiesPage({
           <h1 className="text-3xl font-bold text-gray-900">Backlink Opportunities</h1>
           <p className="text-gray-600 mt-2">
             Found {filteredOpportunities.length} high-quality backlink opportunities
+          </p>
+          {/* Debug info */}
+          <p className="text-xs text-gray-400 mt-2">
+            [DEBUG] opportunities state: {opportunities.length}, filtered: {filteredOpportunities.length}, loading: {loading ? 'yes' : 'no'}
           </p>
         </div>
         <div className="flex gap-2">
