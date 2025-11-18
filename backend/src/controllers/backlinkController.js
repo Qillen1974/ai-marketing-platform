@@ -206,6 +206,20 @@ const getOpportunities = async (req, res) => {
 
     console.log(`✅ Website verified for user ${userId}`);
 
+    // IMPROVEMENT B: Get user's backlink settings to filter opportunities
+    const settingsResult = await pool.query(
+      `SELECT min_domain_authority, max_domain_authority, min_difficulty, max_difficulty
+       FROM backlink_discovery_settings
+       WHERE user_id = $1`,
+      [userId]
+    );
+
+    let userSettings = null;
+    if (settingsResult.rows.length > 0) {
+      userSettings = settingsResult.rows[0];
+      console.log(`⚙️  Found user settings: DA ${userSettings.min_domain_authority}-${userSettings.max_domain_authority}, Difficulty ${userSettings.min_difficulty}-${userSettings.max_difficulty}`);
+    }
+
     // Build query with filters
     let query = `
       SELECT id, source_url, source_domain, domain_authority, page_authority,
@@ -216,6 +230,14 @@ const getOpportunities = async (req, res) => {
     `;
     const params = [websiteId];
     let paramIndex = 2;
+
+    // IMPROVEMENT B: Apply user's DA settings to filter
+    if (userSettings) {
+      query += ` AND domain_authority >= $${paramIndex} AND domain_authority <= $${paramIndex + 1}`;
+      params.push(userSettings.min_domain_authority, userSettings.max_domain_authority);
+      paramIndex += 2;
+      console.log(`  Adding DA filter: ${userSettings.min_domain_authority}-${userSettings.max_domain_authority}`);
+    }
 
     if (status) {
       query += ` AND status = $${paramIndex}`;
@@ -229,7 +251,15 @@ const getOpportunities = async (req, res) => {
       paramIndex++;
     }
 
-    // Handle difficulty filter
+    // IMPROVEMENT B: Apply user's difficulty settings
+    if (userSettings) {
+      query += ` AND difficulty_score >= $${paramIndex} AND difficulty_score <= $${paramIndex + 1}`;
+      params.push(userSettings.min_difficulty, userSettings.max_difficulty);
+      paramIndex += 2;
+      console.log(`  Adding Difficulty filter: ${userSettings.min_difficulty}-${userSettings.max_difficulty}`);
+    }
+
+    // Handle difficulty filter (from UI filters, if specified)
     if (difficulty) {
       if (difficulty === 'easy') {
         query += ` AND difficulty_score <= $${paramIndex}`;
