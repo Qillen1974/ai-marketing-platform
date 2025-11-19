@@ -122,6 +122,57 @@ export default function DashboardPage() {
         </div>
       </div>
 
+      {/* Featured Tools & Features */}
+      <div className="mb-8">
+        <h2 className="text-xl font-bold text-gray-900 mb-4">🚀 SE Ranking Tools</h2>
+        <div className="grid md:grid-cols-3 gap-4">
+          {/* Competitor Analysis */}
+          <button
+            onClick={() => router.push('/dashboard/competitor-analysis')}
+            className="bg-gradient-to-br from-blue-50 to-blue-100 border border-blue-200 rounded-lg p-6 text-left hover:shadow-lg transition"
+          >
+            <div className="text-3xl mb-2">🔍</div>
+            <h3 className="font-bold text-gray-900">Competitor Analysis</h3>
+            <p className="text-gray-600 text-sm mt-2">
+              Analyze competitor backlinks and find keyword gaps
+            </p>
+            <span className="inline-block text-blue-600 text-sm font-semibold mt-3">
+              Get Started →
+            </span>
+          </button>
+
+          {/* Site Health */}
+          <button
+            onClick={() => router.push('/dashboard/site-health')}
+            className="bg-gradient-to-br from-green-50 to-green-100 border border-green-200 rounded-lg p-6 text-left hover:shadow-lg transition"
+          >
+            <div className="text-3xl mb-2">📊</div>
+            <h3 className="font-bold text-gray-900">Site Health Monitor</h3>
+            <p className="text-gray-600 text-sm mt-2">
+              Run 115+ SEO checks and track health trends
+            </p>
+            <span className="inline-block text-green-600 text-sm font-semibold mt-3">
+              Get Started →
+            </span>
+          </button>
+
+          {/* Reddit Discovery */}
+          <button
+            onClick={() => router.push('/dashboard/reddit/1')}
+            className="bg-gradient-to-br from-orange-50 to-orange-100 border border-orange-200 rounded-lg p-6 text-left hover:shadow-lg transition"
+          >
+            <div className="text-3xl mb-2">🔗</div>
+            <h3 className="font-bold text-gray-900">Reddit Opportunities</h3>
+            <p className="text-gray-600 text-sm mt-2">
+              Find communities to share content and get traffic
+            </p>
+            <span className="inline-block text-orange-600 text-sm font-semibold mt-3">
+              Get Started →
+            </span>
+          </button>
+        </div>
+      </div>
+
       {/* Add Website Form */}
       <div className="bg-white p-6 rounded-lg shadow mb-8">
         <h2 className="text-xl font-bold mb-4">Add New Website</h2>
