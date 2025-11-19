@@ -52,8 +52,17 @@ const corsOptions = {
 app.use(cors(corsOptions));
 app.use(express.json());
 
-// Initialize database
-initDatabase();
+// Initialize database (async initialization)
+let dbReady = false;
+(async () => {
+  try {
+    await initDatabase();
+    dbReady = true;
+    console.log('✅ Database initialization complete');
+  } catch (error) {
+    console.error('❌ Failed to initialize database:', error);
+  }
+})();
 
 // Routes
 app.use('/api/auth', authRoutes);
