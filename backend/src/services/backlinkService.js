@@ -355,11 +355,15 @@ const generateSyntheticOpportunitiesForKeyword = (keyword, userSettings) => {
   // Create opportunities from these sites
   nicheSites.forEach((site, index) => {
     // Different opportunity types for variation
-    const types = ['resource_page', 'guest_post', 'blog'];
+    const types = ['guest_post', 'resource_page', 'blog'];
     const type = types[index % types.length];
 
+    // Generate action steps based on opportunity type
+    const actionSteps = generateOpportunityActionSteps(site.domain, type, keyword);
+
     opportunities.push({
-      source_url: `https://${site.domain}/${generatePagePath(keyword, type)}`,
+      // Point to main domain (which actually exists) instead of fake page
+      source_url: `https://${site.domain}`,
       source_domain: site.domain,
       opportunity_type: type,
       domain_authority: site.domain_authority,
@@ -370,6 +374,13 @@ const generateSyntheticOpportunitiesForKeyword = (keyword, userSettings) => {
       contact_email: site.contact_email || null,
       contact_method: 'contact_form',
       is_synthetic: true, // Mark as synthetic for transparency
+
+      // NEW: Add actionable next steps for user
+      action_steps: actionSteps,
+
+      // NEW: What to do to secure this link
+      outreach_method: getOutreachMethod(type),
+
       links_from_domain: Math.floor(Math.random() * 20) + 5, // 5-25 backlinks
       referring_domain_authority: site.domain_authority,
     });
@@ -697,7 +708,185 @@ const getAchievableSitesForNiche = (niche, minDA, maxDA) => {
 };
 
 /**
+ * Generate actionable next steps for reaching out to a site
+ * Tells users exactly what to do and where to look
+ */
+const generateOpportunityActionSteps = (domain, opportunityType, keyword) => {
+  const commonPages = [
+    '/write-for-us',
+    '/guest-post',
+    '/guest-posts',
+    '/contribute',
+    '/contributor-guidelines',
+    '/submission-guidelines',
+    '/submit-article',
+    '/contact'
+  ];
+
+  switch (opportunityType) {
+    case 'guest_post':
+      return [
+        {
+          step: 1,
+          action: 'Visit the website',
+          details: `Go to https://${domain} and look for links like "Write for Us", "Guest Posts", or "Contribute"`
+        },
+        {
+          step: 2,
+          action: 'Check submission guidelines',
+          details: `Look for pages: ${commonPages.join(', ')}`
+        },
+        {
+          step: 3,
+          action: 'Prepare your pitch',
+          details: `Create a guest post about "${keyword}" that fits their audience`
+        },
+        {
+          step: 4,
+          action: 'Submit your pitch',
+          details: 'Email the editor with your article idea and a brief bio'
+        }
+      ];
+
+    case 'resource_page':
+      return [
+        {
+          step: 1,
+          action: 'Find their resource pages',
+          details: `Visit https://${domain} and search for pages containing lists, roundups, or tools about "${keyword}"`
+        },
+        {
+          step: 2,
+          action: 'Check if they accept submissions',
+          details: 'Look for "add your tool" or "suggest a resource" links or buttons'
+        },
+        {
+          step: 3,
+          action: 'Prepare your submission',
+          details: 'Write a 1-2 sentence description of your offering with your link'
+        },
+        {
+          step: 4,
+          action: 'Submit',
+          details: 'Use their submission form or email the page owner'
+        }
+      ];
+
+    case 'blog':
+      return [
+        {
+          step: 1,
+          action: 'Visit their blog',
+          details: `Go to https://${domain}/blog (or /news, /articles) and find posts about "${keyword}"`
+        },
+        {
+          step: 2,
+          action: 'Find related articles',
+          details: 'Look for blog posts where your content would be relevant as a source or link'
+        },
+        {
+          step: 3,
+          action: 'Check for outreach pages',
+          details: 'Look for "Write for Us" or contact pages'
+        },
+        {
+          step: 4,
+          action: 'Reach out',
+          details: 'Email the author or editor suggesting your content as a relevant source'
+        }
+      ];
+
+    default:
+      return [
+        {
+          step: 1,
+          action: 'Visit the website',
+          details: `Go to https://${domain}`
+        },
+        {
+          step: 2,
+          action: 'Explore their content',
+          details: `Look for content related to "${keyword}"`
+        },
+        {
+          step: 3,
+          action: 'Find contact info',
+          details: 'Look for /contact, /about, or editor email'
+        },
+        {
+          step: 4,
+          action: 'Make your pitch',
+          details: 'Email them with how your content could help their audience'
+        }
+      ];
+  }
+};
+
+/**
+ * Get the recommended outreach method for each opportunity type
+ */
+const getOutreachMethod = (opportunityType) => {
+  const methods = {
+    'guest_post': {
+      method: 'Guest Post Outreach',
+      description: 'Pitch a complete article to be published on their blog',
+      likelihood_of_success: 0.35,
+      effort_required: 'high',
+      timeline_weeks: 2,
+      tips: [
+        'Personalize your pitch to their audience',
+        'Show you understand their blog style',
+        'Offer 3-4 topic ideas relevant to them',
+        'Include a 2-3 sentence bio with your link'
+      ]
+    },
+    'resource_page': {
+      method: 'Resource Submission',
+      description: 'Ask to be added to their resource lists, tool directories, or guides',
+      likelihood_of_success: 0.40,
+      effort_required: 'low',
+      timeline_weeks: 1,
+      tips: [
+        'Find their resource page or submission form',
+        'Keep your pitch short (2-3 sentences)',
+        'Highlight what makes you different',
+        'Make it easy for them to add your link'
+      ]
+    },
+    'blog': {
+      method: 'Blog Collaboration',
+      description: 'Partner with them or get featured in their blog',
+      likelihood_of_success: 0.30,
+      effort_required: 'medium',
+      timeline_weeks: 3,
+      tips: [
+        'Start by reading and commenting on their posts',
+        'Reference their articles in your pitch',
+        'Suggest how your content complements theirs',
+        'Offer to link back to them as well'
+      ]
+    },
+    'default': {
+      method: 'General Outreach',
+      description: 'Contact the site owner with a custom pitch',
+      likelihood_of_success: 0.25,
+      effort_required: 'medium',
+      timeline_weeks: 2,
+      tips: [
+        'Find the right contact person',
+        'Personalize your message',
+        'Explain why your content is relevant',
+        'Make it mutually beneficial'
+      ]
+    }
+  };
+
+  return methods[opportunityType] || methods['default'];
+};
+
+/**
  * Generate a realistic page path for different opportunity types
+ * (Kept for backward compatibility)
  */
 const generatePagePath = (keyword, opportunityType) => {
   const keywordSlug = keyword.toLowerCase().replace(/\s+/g, '-');
