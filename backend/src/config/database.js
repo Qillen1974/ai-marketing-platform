@@ -105,92 +105,7 @@ const initDatabase = async () => {
       CREATE INDEX IF NOT EXISTS idx_payments_user_id ON payments(user_id);
       CREATE INDEX IF NOT EXISTS idx_users_email ON users(email);
 
-      CREATE TABLE IF NOT EXISTS backlink_campaigns (
-        id SERIAL PRIMARY KEY,
-        website_id INTEGER NOT NULL REFERENCES websites(id) ON DELETE CASCADE,
-        campaign_name VARCHAR(255) NOT NULL,
-        campaign_type VARCHAR(50), -- 'guest_posts', 'broken_links', 'resource_pages', 'directories'
-        target_backlinks INTEGER DEFAULT 10,
-        status VARCHAR(50) DEFAULT 'active', -- 'active', 'paused', 'completed'
-        created_at TIMESTAMP DEFAULT NOW(),
-        updated_at TIMESTAMP DEFAULT NOW()
-      );
-
-      CREATE TABLE IF NOT EXISTS backlink_opportunities (
-        id SERIAL PRIMARY KEY,
-        website_id INTEGER NOT NULL REFERENCES websites(id) ON DELETE CASCADE,
-        campaign_id INTEGER REFERENCES backlink_campaigns(id) ON DELETE SET NULL,
-        source_url VARCHAR(255) NOT NULL,
-        source_domain VARCHAR(255) NOT NULL,
-        domain_authority INTEGER,
-        page_authority INTEGER,
-        spam_score INTEGER,
-        opportunity_type VARCHAR(50), -- 'guest_post', 'broken_link', 'resource_page', 'directory'
-        relevance_score INTEGER, -- 0-100
-        difficulty_score INTEGER, -- 0-100
-        contact_email VARCHAR(255),
-        contact_method VARCHAR(50), -- 'email', 'contact_form', 'social'
-        status VARCHAR(50) DEFAULT 'discovered', -- 'discovered', 'contacted', 'pending', 'secured', 'rejected'
-        notes TEXT,
-        created_at TIMESTAMP DEFAULT NOW(),
-        updated_at TIMESTAMP DEFAULT NOW(),
-        UNIQUE(website_id, source_domain, opportunity_type)
-      );
-
-      CREATE INDEX IF NOT EXISTS idx_backlink_campaigns_website_id ON backlink_campaigns(website_id);
-      CREATE INDEX IF NOT EXISTS idx_backlink_opportunities_website_id ON backlink_opportunities(website_id);
-      CREATE INDEX IF NOT EXISTS idx_backlink_opportunities_campaign_id ON backlink_opportunities(campaign_id);
-      CREATE INDEX IF NOT EXISTS idx_backlink_opportunities_status ON backlink_opportunities(status);
-
-      CREATE TABLE IF NOT EXISTS outreach_messages (
-        id SERIAL PRIMARY KEY,
-        website_id INTEGER NOT NULL REFERENCES websites(id) ON DELETE CASCADE,
-        opportunity_id INTEGER NOT NULL REFERENCES backlink_opportunities(id) ON DELETE CASCADE,
-        message_type VARCHAR(50), -- 'initial', 'followup_1', 'followup_2'
-        subject VARCHAR(255),
-        body TEXT,
-        sent_date TIMESTAMP,
-        response_received BOOLEAN DEFAULT FALSE,
-        response_date TIMESTAMP,
-        response_text TEXT,
-        status VARCHAR(50) DEFAULT 'draft', -- 'draft', 'scheduled', 'sent', 'opened', 'replied'
-        external_message_id VARCHAR(255), -- Resend message ID for tracking
-        created_at TIMESTAMP DEFAULT NOW(),
-        updated_at TIMESTAMP DEFAULT NOW()
-      );
-
-      CREATE TABLE IF NOT EXISTS acquired_backlinks (
-        id SERIAL PRIMARY KEY,
-        website_id INTEGER NOT NULL REFERENCES websites(id) ON DELETE CASCADE,
-        opportunity_id INTEGER REFERENCES backlink_opportunities(id) ON DELETE SET NULL,
-        backlink_url VARCHAR(255) NOT NULL,
-        anchor_text VARCHAR(255),
-        referring_domain VARCHAR(255),
-        domain_authority INTEGER,
-        is_active BOOLEAN DEFAULT TRUE,
-        verified_date TIMESTAMP,
-        last_checked TIMESTAMP,
-        created_at TIMESTAMP DEFAULT NOW(),
-        updated_at TIMESTAMP DEFAULT NOW()
-      );
-
-      CREATE TABLE IF NOT EXISTS backlink_checks (
-        id SERIAL PRIMARY KEY,
-        acquired_backlink_id INTEGER NOT NULL REFERENCES acquired_backlinks(id) ON DELETE CASCADE,
-        check_date TIMESTAMP DEFAULT NOW(),
-        is_live BOOLEAN,
-        status_code INTEGER,
-        anchor_text VARCHAR(255),
-        position_in_page INTEGER,
-        error_message TEXT
-      );
-
-      CREATE INDEX IF NOT EXISTS idx_outreach_messages_website_id ON outreach_messages(website_id);
-      CREATE INDEX IF NOT EXISTS idx_outreach_messages_opportunity_id ON outreach_messages(opportunity_id);
-      CREATE INDEX IF NOT EXISTS idx_outreach_messages_status ON outreach_messages(status);
-      CREATE INDEX IF NOT EXISTS idx_acquired_backlinks_website_id ON acquired_backlinks(website_id);
-      CREATE INDEX IF NOT EXISTS idx_acquired_backlinks_opportunity_id ON acquired_backlinks(opportunity_id);
-      CREATE INDEX IF NOT EXISTS idx_backlink_checks_backlink_id ON backlink_checks(acquired_backlink_id);
+      -- Backlink feature removed - focusing on SEO + Keyword Tracking + Reddit
 
       CREATE TABLE IF NOT EXISTS usage_tracking (
         id SERIAL PRIMARY KEY,
@@ -330,23 +245,7 @@ const initDatabase = async () => {
       CREATE INDEX IF NOT EXISTS idx_reddit_thread_engagements_thread_id ON reddit_thread_engagements(reddit_thread_id);
       CREATE INDEX IF NOT EXISTS idx_reddit_thread_engagements_status ON reddit_thread_engagements(status);
 
-      CREATE TABLE IF NOT EXISTS backlink_discovery_settings (
-        id SERIAL PRIMARY KEY,
-        user_id INTEGER NOT NULL UNIQUE REFERENCES users(id) ON DELETE CASCADE,
-        min_domain_authority INTEGER DEFAULT 10 CHECK (min_domain_authority >= 1 AND min_domain_authority <= 100),
-        max_domain_authority INTEGER DEFAULT 60 CHECK (max_domain_authority >= 1 AND max_domain_authority <= 100),
-        min_difficulty INTEGER DEFAULT 20 CHECK (min_difficulty >= 1 AND min_difficulty <= 100),
-        max_difficulty INTEGER DEFAULT 70 CHECK (max_difficulty >= 1 AND max_difficulty <= 100),
-        min_traffic INTEGER DEFAULT 0,
-        exclude_edu_gov BOOLEAN DEFAULT false,
-        exclude_news_sites BOOLEAN DEFAULT false,
-        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-        updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-        CONSTRAINT valid_da_range CHECK (min_domain_authority <= max_domain_authority),
-        CONSTRAINT valid_difficulty_range CHECK (min_difficulty <= max_difficulty)
-      );
-
-      CREATE INDEX IF NOT EXISTS idx_backlink_discovery_settings_user_id ON backlink_discovery_settings(user_id);
+      -- Backlink discovery settings removed - feature discontinued
     `);
     console.log('Database schema initialized successfully');
   } catch (error) {
