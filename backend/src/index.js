@@ -16,6 +16,8 @@ const adminUsersRoutes = require('./routes/adminUsersRoutes');
 const redditRoutes = require('./routes/redditRoutes');
 const rankingRoutes = require('./routes/rankingRoutes');
 const aiMessageRoutes = require('./routes/aiMessageRoutes');
+const competitorAnalysisRoutes = require('./routes/competitorAnalysisRoutes');
+const siteHealthRoutes = require('./routes/siteHealthRoutes');
 
 const app = express();
 const PORT = process.env.PORT || 5000;
@@ -75,6 +77,12 @@ app.use('/api/rankings', rankingRoutes);
 
 // AI message generation routes
 app.use('/api/ai', aiMessageRoutes);
+
+// Competitor analysis routes
+app.use('/api/competitors', competitorAnalysisRoutes);
+
+// Site health monitoring routes
+app.use('/api/site-health', siteHealthRoutes);
 
 // Health check endpoint
 app.get('/health', (req, res) => {

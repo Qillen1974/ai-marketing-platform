@@ -245,6 +245,73 @@ const initDatabase = async () => {
       CREATE INDEX IF NOT EXISTS idx_reddit_thread_engagements_thread_id ON reddit_thread_engagements(reddit_thread_id);
       CREATE INDEX IF NOT EXISTS idx_reddit_thread_engagements_status ON reddit_thread_engagements(status);
 
+      -- SE Ranking API Integration - Competitor Analysis
+      CREATE TABLE IF NOT EXISTS competitor_analyses (
+        id SERIAL PRIMARY KEY,
+        user_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+        competitor_domain VARCHAR(255) NOT NULL,
+        user_domain VARCHAR(255) NOT NULL,
+        competitor_backlinks INTEGER,
+        user_backlinks INTEGER,
+        gap_opportunities INTEGER,
+        analysis_data JSONB,
+        created_at TIMESTAMP DEFAULT NOW(),
+        updated_at TIMESTAMP DEFAULT NOW()
+      );
+
+      CREATE INDEX IF NOT EXISTS idx_competitor_analyses_user_id ON competitor_analyses(user_id);
+      CREATE INDEX IF NOT EXISTS idx_competitor_analyses_competitor_domain ON competitor_analyses(competitor_domain);
+
+      -- Keyword Gap Analysis
+      CREATE TABLE IF NOT EXISTS keyword_gap_analyses (
+        id SERIAL PRIMARY KEY,
+        user_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+        competitor_domain VARCHAR(255) NOT NULL,
+        user_domain VARCHAR(255) NOT NULL,
+        common_keywords_count INTEGER,
+        competitor_exclusive_count INTEGER,
+        user_exclusive_count INTEGER,
+        analysis_data JSONB,
+        created_at TIMESTAMP DEFAULT NOW(),
+        updated_at TIMESTAMP DEFAULT NOW()
+      );
+
+      CREATE INDEX IF NOT EXISTS idx_keyword_gap_analyses_user_id ON keyword_gap_analyses(user_id);
+      CREATE INDEX IF NOT EXISTS idx_keyword_gap_analyses_competitor_domain ON keyword_gap_analyses(competitor_domain);
+
+      -- Site Health Monitoring (for automated audits)
+      CREATE TABLE IF NOT EXISTS site_health_audits (
+        id SERIAL PRIMARY KEY,
+        website_id INTEGER NOT NULL REFERENCES websites(id) ON DELETE CASCADE,
+        audit_date TIMESTAMP DEFAULT NOW(),
+        health_score INTEGER, -- 0-100
+        critical_issues INTEGER,
+        high_issues INTEGER,
+        medium_issues INTEGER,
+        low_issues INTEGER,
+        total_issues INTEGER,
+        previous_score INTEGER, -- For trend tracking
+        issue_summary JSONB, -- Top issues grouped by category
+        audit_data JSONB, -- Full audit report
+        created_at TIMESTAMP DEFAULT NOW()
+      );
+
+      CREATE INDEX IF NOT EXISTS idx_site_health_audits_website_id ON site_health_audits(website_id);
+      CREATE INDEX IF NOT EXISTS idx_site_health_audits_audit_date ON site_health_audits(audit_date);
+
+      -- Quick Wins Analysis
+      CREATE TABLE IF NOT EXISTS quick_wins_reports (
+        id SERIAL PRIMARY KEY,
+        website_id INTEGER NOT NULL REFERENCES websites(id) ON DELETE CASCADE,
+        audit_id INTEGER REFERENCES site_health_audits(id),
+        quick_wins_data JSONB, -- Array of recommended quick wins with difficulty and impact scores
+        total_potential_impact_score INTEGER,
+        created_at TIMESTAMP DEFAULT NOW(),
+        updated_at TIMESTAMP DEFAULT NOW()
+      );
+
+      CREATE INDEX IF NOT EXISTS idx_quick_wins_reports_website_id ON quick_wins_reports(website_id);
+
       -- Backlink discovery settings removed - feature discontinued
     `);
     console.log('Database schema initialized successfully');
