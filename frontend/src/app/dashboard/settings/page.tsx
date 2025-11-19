@@ -5,7 +5,6 @@ import api from '@/lib/api';
 import { useRouter } from 'next/navigation';
 import { useEffect, useState } from 'react';
 import toast from 'react-hot-toast';
-import BacklinkSettingsPanel from '@/components/BacklinkSettingsPanel';
 
 interface ApiKey {
   id: number;
@@ -124,12 +123,7 @@ export default function SettingsPage() {
       {/* Header */}
       <div className="mb-8">
         <h1 className="text-3xl font-bold text-gray-900">Settings</h1>
-        <p className="text-gray-600 mt-2">Manage your API keys, preferences, and backlink discovery settings</p>
-      </div>
-
-      {/* Backlink Discovery Settings Section */}
-      <div className="mb-8">
-        <BacklinkSettingsPanel />
+        <p className="text-gray-600 mt-2">Manage your API keys and preferences</p>
       </div>
 
       {/* AI API Keys Section */}

@@ -6,7 +6,6 @@ import { useRouter } from 'next/navigation';
 import { useEffect, useState } from 'react';
 import toast from 'react-hot-toast';
 import api from '@/lib/api';
-import BacklinkHealthWidget from '@/components/BacklinkHealthWidget';
 
 interface QuotaData {
   plan: string;
@@ -209,12 +208,6 @@ export default function DashboardPage() {
                         📊 Rankings
                       </button>
                       <button
-                        onClick={() => router.push(`/dashboard/backlinks/${website.id}`)}
-                        className="bg-green-600 text-white px-4 py-2 rounded hover:bg-green-700 text-sm"
-                      >
-                        Backlinks
-                      </button>
-                      <button
                         onClick={() => router.push(`/dashboard/reddit/${website.id}`)}
                         className="bg-orange-600 text-white px-4 py-2 rounded hover:bg-orange-700 text-sm flex items-center gap-1"
                       >
@@ -228,11 +221,6 @@ export default function DashboardPage() {
                       </button>
                     </div>
                   </div>
-                </div>
-
-                {/* Backlink Health Widget */}
-                <div className="mt-4 pt-4 border-t border-gray-200">
-                  <BacklinkHealthWidget websiteId={website.id} />
                 </div>
               </div>
             ))}
