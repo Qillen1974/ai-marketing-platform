@@ -25,6 +25,7 @@ interface KeywordGap {
   trafficEstimate: number;
   difficulty: number;
   url: string;
+  opportunity?: string;
 }
 
 interface Analysis {
