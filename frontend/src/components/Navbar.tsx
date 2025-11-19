@@ -29,6 +29,18 @@ export default function Navbar() {
             Dashboard
           </Link>
           <Link
+            href="/dashboard/competitor-analysis"
+            className="text-sm font-medium text-gray-600 hover:text-gray-900"
+          >
+            Competitors
+          </Link>
+          <Link
+            href="/dashboard/site-health"
+            className="text-sm font-medium text-gray-600 hover:text-gray-900"
+          >
+            Health
+          </Link>
+          <Link
             href="/dashboard/quota"
             className="text-sm font-medium text-gray-600 hover:text-gray-900"
           >
