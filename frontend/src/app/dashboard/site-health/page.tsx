@@ -367,7 +367,7 @@ export default function SiteHealthPage() {
                         </p>
                       </div>
                     </div>
-                  </button>
+                  </div>
                 ))}
               </div>
             </div>
