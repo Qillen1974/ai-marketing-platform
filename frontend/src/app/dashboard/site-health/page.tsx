@@ -80,7 +80,7 @@ export default function SiteHealthPage() {
     } catch (error: any) {
       if (error.response?.status === 404) {
         setHealth(null);
-        toast.info('No audit found for this website. Run an audit to get started.');
+        toast.success('No audit found for this website. Run an audit to get started.');
       } else {
         toast.error('Failed to load health dashboard');
       }
