@@ -1,10 +1,10 @@
 const express = require('express');
 const router = express.Router();
 const siteHealthController = require('../controllers/siteHealthController');
-const { authenticateToken } = require('../middleware/auth');
+const { authMiddleware } = require('../middleware/auth');
 
 // All routes require authentication
-router.use(authenticateToken);
+router.use(authMiddleware);
 
 /**
  * POST /api/site-health/audit
