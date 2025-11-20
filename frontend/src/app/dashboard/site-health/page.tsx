@@ -62,13 +62,22 @@ export default function SiteHealthPage() {
     }
 
     fetchWebsites();
-  }, [token]);
+  }, [token, router, fetchWebsites]);
 
   useEffect(() => {
     if (selectedWebsiteId) {
       loadHealthDashboard();
     }
   }, [selectedWebsiteId]);
+
+  // Cleanup interval on component unmount
+  useEffect(() => {
+    return () => {
+      if (progressInterval) {
+        clearInterval(progressInterval);
+      }
+    };
+  }, [progressInterval]);
 
   const loadHealthDashboard = async () => {
     if (!selectedWebsiteId) return;
@@ -114,8 +123,14 @@ export default function SiteHealthPage() {
       let jobId = auditResponse.data.jobId;
       let attempts = 0;
       const maxAttempts = 180; // 30 minutes with 10-second intervals
+      let shouldContinuePolling = true;
 
       const pollInterval = setInterval(async () => {
+        if (!shouldContinuePolling) {
+          clearInterval(pollInterval);
+          return;
+        }
+
         attempts++;
         setAuditProgress(Math.min(10 + (attempts / maxAttempts) * 80, 90));
 
@@ -128,6 +143,7 @@ export default function SiteHealthPage() {
           });
 
           if (statusResponse.data.status === 'completed') {
+            shouldContinuePolling = false;
             clearInterval(pollInterval);
 
             // Get the full report
@@ -151,6 +167,7 @@ export default function SiteHealthPage() {
         }
 
         if (attempts >= maxAttempts) {
+          shouldContinuePolling = false;
           clearInterval(pollInterval);
           setAuditRunning(false);
           toast.error('Audit timed out. Please check back in a few minutes.');
