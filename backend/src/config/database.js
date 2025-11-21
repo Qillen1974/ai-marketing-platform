@@ -10,19 +10,19 @@ if (process.env.NODE_ENV !== 'production') {
   }
 }
 
-// Use DATABASE_URL if available (Railway auto-provides for external DBs)
-// Otherwise build from individual environment variables
+// Use DATABASE_URL if available, otherwise build from environment variables
+// In production, fallback to Neon credentials
 const poolConfig = process.env.DATABASE_URL
   ? {
       connectionString: process.env.DATABASE_URL,
       ssl: process.env.NODE_ENV === 'production' ? { rejectUnauthorized: false } : false,
     }
   : {
-      user: process.env.DB_USER || 'postgres',
-      password: process.env.DB_PASSWORD || 'password',
-      host: process.env.DB_HOST || 'localhost',
+      user: process.env.DB_USER || (process.env.NODE_ENV === 'production' ? 'neondb_owner' : 'postgres'),
+      password: process.env.DB_PASSWORD || (process.env.NODE_ENV === 'production' ? 'npg_1upJ2PGSImXz' : 'password'),
+      host: process.env.DB_HOST || (process.env.NODE_ENV === 'production' ? 'ep-bitter-fog-a1wm9p9c-pooler.ap-southeast-1.aws.neon.tech' : 'localhost'),
       port: process.env.DB_PORT || 5432,
-      database: process.env.DB_NAME || 'ai_marketing',
+      database: process.env.DB_NAME || 'neondb',
       ssl: process.env.NODE_ENV === 'production' ? { rejectUnauthorized: false } : false,
     };
 
