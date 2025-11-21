@@ -1,5 +1,14 @@
 const { Pool } = require('pg');
-require('dotenv').config();
+const fs = require('fs');
+const path = require('path');
+
+// Only load .env in development, not in production (use Railway env vars)
+if (process.env.NODE_ENV !== 'production') {
+  const envPath = path.join(__dirname, '../../.env');
+  if (fs.existsSync(envPath)) {
+    require('dotenv').config();
+  }
+}
 
 // Use DATABASE_URL if available (Railway auto-provides for external DBs)
 // Otherwise build from individual environment variables
