@@ -1,6 +1,15 @@
 const express = require('express');
 const cors = require('cors');
-require('dotenv').config();
+const fs = require('fs');
+const path = require('path');
+
+// Only load .env in development, not in production (use Railway env vars)
+if (process.env.NODE_ENV !== 'production') {
+  const envPath = path.join(__dirname, '../.env');
+  if (fs.existsSync(envPath)) {
+    require('dotenv').config();
+  }
+}
 
 const { initDatabase } = require('./config/database');
 const authRoutes = require('./routes/authRoutes');
