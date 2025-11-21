@@ -17,6 +17,16 @@ const poolConfig = process.env.DATABASE_URL
       ssl: process.env.NODE_ENV === 'production' ? { rejectUnauthorized: false } : false,
     };
 
+// Debug logging
+console.log('🔧 Database Configuration:');
+console.log(`   Using DATABASE_URL: ${process.env.DATABASE_URL ? 'Yes' : 'No'}`);
+if (!process.env.DATABASE_URL) {
+  console.log(`   DB_HOST: ${process.env.DB_HOST || 'NOT SET (using localhost)'}`);
+  console.log(`   DB_PORT: ${process.env.DB_PORT || 'NOT SET (using 5432)'}`);
+  console.log(`   DB_USER: ${process.env.DB_USER || 'NOT SET (using postgres)'}`);
+  console.log(`   DB_NAME: ${process.env.DB_NAME || 'NOT SET (using ai_marketing)'}`);
+}
+
 const pool = new Pool(poolConfig);
 
 // Initialize database schema
