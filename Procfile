@@ -1,2 +1,2 @@
-# Backend service for site health and competitor analysis
-web: node backend/src/index.js
+# Backend Node.js service - ensure environment variables are passed
+web: cd backend && node src/index.js
