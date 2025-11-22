@@ -11,7 +11,12 @@ const seRankingApi = require('../services/seRankingApiService');
  */
 const runSiteHealthAudit = async (req, res) => {
   try {
-    const { websiteId, domain } = req.body;
+    let { websiteId, domain } = req.body;
+
+    // Strip protocol from domain if present (https://, http://, etc.)
+    if (domain) {
+      domain = domain.replace(/^https?:\/\//i, '').replace(/\/$/, '');
+    }
 
     console.log(`📥 Audit request received:`, { websiteId, domain, body: req.body });
     console.log(`Domain validation: domain="${domain}", isValid=${domain ? seRankingApi.isValidDomain(domain) : 'N/A'}`);
@@ -78,7 +83,12 @@ const getAuditStatus = async (req, res) => {
  */
 const getAuditReport = async (req, res) => {
   try {
-    const { websiteId, domain } = req.body;
+    let { websiteId, domain } = req.body;
+
+    // Strip protocol from domain if present
+    if (domain) {
+      domain = domain.replace(/^https?:\/\//i, '').replace(/\/$/, '');
+    }
 
     if (!domain || !websiteId) {
       return res.status(400).json({ error: 'Domain and website ID required' });
