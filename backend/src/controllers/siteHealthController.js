@@ -13,8 +13,12 @@ const runSiteHealthAudit = async (req, res) => {
   try {
     const { websiteId, domain } = req.body;
 
+    console.log(`📥 Audit request received:`, { websiteId, domain, body: req.body });
+    console.log(`Domain validation: domain="${domain}", isValid=${domain ? seRankingApi.isValidDomain(domain) : 'N/A'}`);
+
     if (!domain || !seRankingApi.isValidDomain(domain)) {
-      return res.status(400).json({ error: 'Invalid domain' });
+      console.log(`❌ Domain validation failed for: "${domain}"`);
+      return res.status(400).json({ error: 'Invalid domain', receivedDomain: domain });
     }
 
     console.log(`🔧 Starting site health audit for ${domain}`);
