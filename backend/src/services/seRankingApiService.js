@@ -7,6 +7,7 @@ const axios = require('axios');
 const SE_RANKING_API_BASE = 'https://api.seranking.com/v4';
 
 // Debug: Check if SE_RANKING_API_KEY is configured
+console.log('🔑 SE_RANKING_API_KEY:', process.env.SE_RANKING_API_KEY ? `Set (${process.env.SE_RANKING_API_KEY.substring(0, 8)}...)` : 'NOT SET');
 if (process.env.SE_RANKING_API_KEY) {
   console.log('✅ SE_RANKING_API_KEY is configured');
 } else {
