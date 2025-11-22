@@ -6,6 +6,13 @@ const axios = require('axios');
 
 const SE_RANKING_API_BASE = 'https://api.seranking.com/v4';
 
+// Debug: Check if SE_RANKING_API_KEY is configured
+if (process.env.SE_RANKING_API_KEY) {
+  console.log('✅ SE_RANKING_API_KEY is configured');
+} else {
+  console.error('❌ SE_RANKING_API_KEY is NOT configured. Set this environment variable.');
+}
+
 // Initialize axios instance with SE Ranking API
 const seRankingClient = axios.create({
   baseURL: SE_RANKING_API_BASE,
@@ -202,6 +209,10 @@ const startWebsiteAudit = async (domain, options = {}) => {
     return response.data;
   } catch (error) {
     console.error(`❌ Error starting audit for ${domain}:`, error.message);
+    if (error.response) {
+      console.error(`   Status: ${error.response.status}`);
+      console.error(`   Data:`, error.response.data);
+    }
     return null;
   }
 };
