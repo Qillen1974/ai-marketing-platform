@@ -41,6 +41,12 @@ export default function Navbar() {
             Health
           </Link>
           <Link
+            href="/dashboard/backlinks-selector"
+            className="text-sm font-medium text-gray-600 hover:text-gray-900"
+          >
+            Backlinks
+          </Link>
+          <Link
             href="/dashboard/quota"
             className="text-sm font-medium text-gray-600 hover:text-gray-900"
           >
