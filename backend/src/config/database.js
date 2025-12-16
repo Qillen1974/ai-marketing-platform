@@ -341,6 +341,37 @@ const initDatabase = async () => {
       CREATE INDEX IF NOT EXISTS idx_quick_wins_reports_website_id ON quick_wins_reports(website_id);
 
       -- Backlinks Monitor - Track backlinks to user's domain
+      -- Create backlink_checks first since backlinks table references it
+      CREATE TABLE IF NOT EXISTS backlink_checks (
+        id SERIAL PRIMARY KEY,
+        website_id INTEGER NOT NULL REFERENCES websites(id) ON DELETE CASCADE,
+
+        -- Check metadata
+        check_date TIMESTAMP DEFAULT NOW(),
+        check_status VARCHAR(50) DEFAULT 'completed', -- 'pending', 'in_progress', 'completed', 'failed'
+
+        -- Summary metrics
+        total_backlinks INTEGER DEFAULT 0,
+        total_referring_domains INTEGER DEFAULT 0,
+        dofollow_count INTEGER DEFAULT 0,
+        nofollow_count INTEGER DEFAULT 0,
+
+        -- Changes since last check
+        new_backlinks_count INTEGER DEFAULT 0,
+        lost_backlinks_count INTEGER DEFAULT 0,
+
+        -- Quality metrics
+        average_domain_authority DECIMAL,
+        top_referring_domains JSONB, -- Store top 10 referring domains
+        anchor_text_distribution JSONB, -- Store anchor text analysis
+
+        -- Full API response for debugging
+        api_response_data JSONB,
+
+        error_message TEXT,
+        created_at TIMESTAMP DEFAULT NOW()
+      );
+
       CREATE TABLE IF NOT EXISTS backlinks (
         id SERIAL PRIMARY KEY,
         website_id INTEGER NOT NULL REFERENCES websites(id) ON DELETE CASCADE,
@@ -377,36 +408,6 @@ const initDatabase = async () => {
         updated_at TIMESTAMP DEFAULT NOW(),
 
         UNIQUE(website_id, referring_url, target_url)
-      );
-
-      CREATE TABLE IF NOT EXISTS backlink_checks (
-        id SERIAL PRIMARY KEY,
-        website_id INTEGER NOT NULL REFERENCES websites(id) ON DELETE CASCADE,
-
-        -- Check metadata
-        check_date TIMESTAMP DEFAULT NOW(),
-        check_status VARCHAR(50) DEFAULT 'completed', -- 'pending', 'in_progress', 'completed', 'failed'
-
-        -- Summary metrics
-        total_backlinks INTEGER DEFAULT 0,
-        total_referring_domains INTEGER DEFAULT 0,
-        dofollow_count INTEGER DEFAULT 0,
-        nofollow_count INTEGER DEFAULT 0,
-
-        -- Changes since last check
-        new_backlinks_count INTEGER DEFAULT 0,
-        lost_backlinks_count INTEGER DEFAULT 0,
-
-        -- Quality metrics
-        average_domain_authority DECIMAL,
-        top_referring_domains JSONB, -- Store top 10 referring domains
-        anchor_text_distribution JSONB, -- Store anchor text analysis
-
-        -- Full API response for debugging
-        api_response_data JSONB,
-
-        error_message TEXT,
-        created_at TIMESTAMP DEFAULT NOW()
       );
 
       CREATE INDEX IF NOT EXISTS idx_backlinks_website_id ON backlinks(website_id);
