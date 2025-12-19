@@ -1,10 +1,23 @@
 'use client';
 
-import { useEffect, useState, useMemo } from 'react';
+import { useEffect, useState, useMemo, use } from 'react';
 import { useRouter } from 'next/navigation';
 import { useAuthStore } from '@/stores/authStore';
 import api from '@/lib/api';
 import toast from 'react-hot-toast';
+
+// Helper function defined at module level to avoid initialization issues
+const formatDateString = (dateString: string) => {
+  try {
+    return new Date(dateString).toLocaleDateString('en-US', {
+      year: 'numeric',
+      month: 'short',
+      day: 'numeric',
+    });
+  } catch {
+    return dateString;
+  }
+};
 
 interface BacklinkData {
   id: number;
@@ -47,11 +60,12 @@ interface BacklinkHistoryEntry {
 export default function BacklinksMonitorPage({
   params,
 }: {
-  params: { websiteId: string };
+  params: Promise<{ websiteId: string }>;
 }) {
+  const resolvedParams = use(params);
   const token = useAuthStore((state) => state.token);
   const router = useRouter();
-  const websiteId = Number(params.websiteId);
+  const websiteId = Number(resolvedParams.websiteId);
 
   const [backlinks, setBacklinks] = useState<BacklinkData[]>([]);
   const [metrics, setMetrics] = useState<BacklinkMetrics | null>(null);
@@ -140,7 +154,7 @@ export default function BacklinksMonitorPage({
       totalLostBacklinks,
       growthRate,
       checkCount: sortedHistory.length,
-      period: `${formatDate(oldest.check_date)} - ${formatDate(latest.check_date)}`,
+      period: `${formatDateString(oldest.check_date)} - ${formatDateString(latest.check_date)}`,
     };
   }, [history]);
 
@@ -218,13 +232,8 @@ export default function BacklinksMonitorPage({
     toast.success('Backlinks exported to CSV');
   };
 
-  const formatDate = (dateString: string) => {
-    return new Date(dateString).toLocaleDateString('en-US', {
-      year: 'numeric',
-      month: 'short',
-      day: 'numeric',
-    });
-  };
+  // Use module-level formatDateString function
+  const formatDate = formatDateString;
 
   if (!token) return null;
 
