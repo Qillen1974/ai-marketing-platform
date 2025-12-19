@@ -462,6 +462,15 @@ const fixBacklinksSchema = async () => {
   try {
     console.log('🔧 Checking backlinks schema...');
 
+    // First, check if there's an old schema with acquired_backlink_id column
+    // If so, we need to drop the constraint or the column
+    try {
+      await pool.query(`ALTER TABLE backlink_checks DROP COLUMN IF EXISTS acquired_backlink_id CASCADE`);
+      console.log('  ✅ Removed old acquired_backlink_id column');
+    } catch (err) {
+      // Ignore - column might not exist
+    }
+
     // Add missing columns to backlink_checks if they don't exist
     const backlinksCheckColumns = [
       { name: 'website_id', sql: 'ALTER TABLE backlink_checks ADD COLUMN IF NOT EXISTS website_id INTEGER REFERENCES websites(id) ON DELETE CASCADE' },
