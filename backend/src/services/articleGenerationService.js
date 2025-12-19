@@ -11,6 +11,65 @@ const { getDecryptedApiKey } = require('../controllers/settingsController');
 const { generateArticleHtml, calculateWordCount, generateSlug } = require('../templates/articleTemplate');
 
 // ============================================
+// Retry Logic with Exponential Backoff
+// ============================================
+
+/**
+ * Sleep for a specified number of milliseconds
+ * @param {number} ms - Milliseconds to sleep
+ */
+const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
+
+/**
+ * Execute a function with retry logic and exponential backoff
+ * @param {Function} fn - Async function to execute
+ * @param {object} options - Retry options
+ * @returns {Promise} Result of the function
+ */
+const withRetry = async (fn, options = {}) => {
+  const {
+    maxRetries = 3,
+    initialDelayMs = 1000,
+    maxDelayMs = 30000,
+    backoffMultiplier = 2,
+    retryableStatuses = [429, 500, 502, 503, 504],
+  } = options;
+
+  let lastError;
+  let delay = initialDelayMs;
+
+  for (let attempt = 1; attempt <= maxRetries + 1; attempt++) {
+    try {
+      return await fn();
+    } catch (error) {
+      lastError = error;
+      const status = error.response?.status;
+      const isRetryable = retryableStatuses.includes(status);
+
+      // Check for rate limit with retry-after header
+      const retryAfter = error.response?.headers?.['retry-after'];
+      if (retryAfter) {
+        delay = parseInt(retryAfter) * 1000 || delay;
+      }
+
+      if (attempt <= maxRetries && isRetryable) {
+        const waitTime = Math.min(delay, maxDelayMs);
+        console.log(`⏳ Rate limited (${status}). Retry ${attempt}/${maxRetries} in ${waitTime / 1000}s...`);
+        await sleep(waitTime);
+        delay *= backoffMultiplier;
+      } else if (!isRetryable) {
+        // Non-retryable error, throw immediately
+        throw error;
+      }
+    }
+  }
+
+  // All retries exhausted
+  console.error(`❌ All ${maxRetries} retries exhausted`);
+  throw lastError;
+};
+
+// ============================================
 // URL Analysis & Keyword Extraction
 // ============================================
 
@@ -297,7 +356,7 @@ Return ONLY the JSON object, no markdown formatting or explanations.`;
 // ============================================
 
 /**
- * Generate an image using DALL-E
+ * Generate an image using DALL-E (with retry logic)
  * @param {number} userId - User ID
  * @param {string} prompt - Image description prompt
  * @returns {string} Generated image URL
@@ -311,22 +370,27 @@ const generateImage = async (userId, prompt) => {
       throw new Error('OpenAI API key not configured');
     }
 
-    const response = await axios.post(
-      'https://api.openai.com/v1/images/generations',
-      {
-        model: 'dall-e-3',
-        prompt: `Professional blog article image: ${prompt}. Style: clean, modern, professional, suitable for business blog. No text overlays.`,
-        n: 1,
-        size: '1792x1024',
-        quality: 'standard',
+    const response = await withRetry(
+      async () => {
+        return axios.post(
+          'https://api.openai.com/v1/images/generations',
+          {
+            model: 'dall-e-3',
+            prompt: `Professional blog article image: ${prompt}. Style: clean, modern, professional, suitable for business blog. No text overlays.`,
+            n: 1,
+            size: '1792x1024',
+            quality: 'standard',
+          },
+          {
+            headers: {
+              Authorization: `Bearer ${apiKey}`,
+              'Content-Type': 'application/json',
+            },
+            timeout: 60000,
+          }
+        );
       },
-      {
-        headers: {
-          Authorization: `Bearer ${apiKey}`,
-          'Content-Type': 'application/json',
-        },
-        timeout: 60000,
-      }
+      { maxRetries: 3, initialDelayMs: 2000 }
     );
 
     const imageUrl = response.data.data[0].url;
@@ -379,7 +443,7 @@ const generateArticleImages = async (userId, articleContent) => {
 // ============================================
 
 /**
- * Generate content using OpenAI
+ * Generate content using OpenAI (with retry logic for rate limits)
  */
 const generateWithOpenAI = async (userId, prompt, model = 'gpt-4o') => {
   const apiKey = await getDecryptedApiKey(userId, 'openai');
@@ -387,31 +451,36 @@ const generateWithOpenAI = async (userId, prompt, model = 'gpt-4o') => {
     throw new Error('OpenAI API key not configured. Please add your API key in Settings.');
   }
 
-  const response = await axios.post(
-    'https://api.openai.com/v1/chat/completions',
-    {
-      model: model,
-      messages: [
+  const response = await withRetry(
+    async () => {
+      return axios.post(
+        'https://api.openai.com/v1/chat/completions',
         {
-          role: 'system',
-          content:
-            'You are an expert SEO content writer specializing in creating high-quality, engaging blog articles for US professional audiences. Always output valid JSON when requested.',
+          model: model,
+          messages: [
+            {
+              role: 'system',
+              content:
+                'You are an expert SEO content writer specializing in creating high-quality, engaging blog articles for US professional audiences. Always output valid JSON when requested.',
+            },
+            {
+              role: 'user',
+              content: prompt,
+            },
+          ],
+          temperature: 0.7,
+          max_tokens: 4000,
         },
         {
-          role: 'user',
-          content: prompt,
-        },
-      ],
-      temperature: 0.7,
-      max_tokens: 4000,
+          headers: {
+            Authorization: `Bearer ${apiKey}`,
+            'Content-Type': 'application/json',
+          },
+          timeout: 120000,
+        }
+      );
     },
-    {
-      headers: {
-        Authorization: `Bearer ${apiKey}`,
-        'Content-Type': 'application/json',
-      },
-      timeout: 120000,
-    }
+    { maxRetries: 3, initialDelayMs: 2000, maxDelayMs: 60000 }
   );
 
   return {
@@ -422,7 +491,7 @@ const generateWithOpenAI = async (userId, prompt, model = 'gpt-4o') => {
 };
 
 /**
- * Generate content using Claude
+ * Generate content using Claude (with retry logic for rate limits)
  */
 const generateWithClaude = async (userId, prompt) => {
   const apiKey = await getDecryptedApiKey(userId, 'claude');
@@ -430,28 +499,33 @@ const generateWithClaude = async (userId, prompt) => {
     throw new Error('Claude API key not configured. Please add your API key in Settings.');
   }
 
-  const response = await axios.post(
-    'https://api.anthropic.com/v1/messages',
-    {
-      model: 'claude-3-5-sonnet-20241022',
-      max_tokens: 4000,
-      system:
-        'You are an expert SEO content writer specializing in creating high-quality, engaging blog articles for US professional audiences. Always output valid JSON when requested.',
-      messages: [
+  const response = await withRetry(
+    async () => {
+      return axios.post(
+        'https://api.anthropic.com/v1/messages',
         {
-          role: 'user',
-          content: prompt,
+          model: 'claude-3-5-sonnet-20241022',
+          max_tokens: 4000,
+          system:
+            'You are an expert SEO content writer specializing in creating high-quality, engaging blog articles for US professional audiences. Always output valid JSON when requested.',
+          messages: [
+            {
+              role: 'user',
+              content: prompt,
+            },
+          ],
         },
-      ],
+        {
+          headers: {
+            'x-api-key': apiKey,
+            'anthropic-version': '2023-06-01',
+            'content-type': 'application/json',
+          },
+          timeout: 120000,
+        }
+      );
     },
-    {
-      headers: {
-        'x-api-key': apiKey,
-        'anthropic-version': '2023-06-01',
-        'content-type': 'application/json',
-      },
-      timeout: 120000,
-    }
+    { maxRetries: 3, initialDelayMs: 2000, maxDelayMs: 60000 }
   );
 
   return {
@@ -463,7 +537,7 @@ const generateWithClaude = async (userId, prompt) => {
 };
 
 /**
- * Generate content using Gemini
+ * Generate content using Gemini (with retry logic for rate limits)
  */
 const generateWithGemini = async (userId, prompt) => {
   const apiKey = await getDecryptedApiKey(userId, 'gemini');
@@ -471,26 +545,31 @@ const generateWithGemini = async (userId, prompt) => {
     throw new Error('Gemini API key not configured. Please add your API key in Settings.');
   }
 
-  const response = await axios.post(
-    `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-pro:generateContent?key=${apiKey}`,
-    {
-      contents: [
+  const response = await withRetry(
+    async () => {
+      return axios.post(
+        `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-pro:generateContent?key=${apiKey}`,
         {
-          parts: [
+          contents: [
             {
-              text: `You are an expert SEO content writer. ${prompt}`,
+              parts: [
+                {
+                  text: `You are an expert SEO content writer. ${prompt}`,
+                },
+              ],
             },
           ],
+          generationConfig: {
+            temperature: 0.7,
+            maxOutputTokens: 4000,
+          },
         },
-      ],
-      generationConfig: {
-        temperature: 0.7,
-        maxOutputTokens: 4000,
-      },
+        {
+          timeout: 120000,
+        }
+      );
     },
-    {
-      timeout: 120000,
-    }
+    { maxRetries: 3, initialDelayMs: 2000, maxDelayMs: 60000 }
   );
 
   return {
