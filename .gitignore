@@ -16,6 +16,11 @@ out/
 .env.local
 .env.*.local
 
+# Google service account keys (sensitive)
+ai-marketing-*.json
+*-credentials.json
+service-account*.json
+
 # IDE
 .vscode/
 .idea/

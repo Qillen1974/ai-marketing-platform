@@ -15,7 +15,7 @@ const SCOPES = [
  * Get authenticated Search Console client
  */
 const getSearchConsoleClient = async () => {
-  const serviceAccountJson = process.env.GOOGLE_SERVICE_ACCOUNT_JSON;
+  let serviceAccountJson = process.env.GOOGLE_SERVICE_ACCOUNT_JSON;
 
   if (!serviceAccountJson) {
     console.error('❌ GOOGLE_SERVICE_ACCOUNT_JSON not configured');
@@ -23,7 +23,16 @@ const getSearchConsoleClient = async () => {
   }
 
   try {
+    // Fix escaped newlines that Railway may have double-escaped
+    // Replace literal \\n with actual \n for the private key
+    serviceAccountJson = serviceAccountJson.replace(/\\\\n/g, '\\n');
+
     const serviceAccount = JSON.parse(serviceAccountJson);
+
+    // Also fix newlines in the private key if they got converted to literal \n strings
+    if (serviceAccount.private_key) {
+      serviceAccount.private_key = serviceAccount.private_key.replace(/\\n/g, '\n');
+    }
     const auth = new google.auth.GoogleAuth({
       credentials: serviceAccount,
       scopes: SCOPES,
