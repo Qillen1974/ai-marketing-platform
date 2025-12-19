@@ -410,25 +410,45 @@ const initDatabase = async () => {
         UNIQUE(website_id, referring_url, target_url)
       );
 
-      CREATE INDEX IF NOT EXISTS idx_backlinks_website_id ON backlinks(website_id);
-      CREATE INDEX IF NOT EXISTS idx_backlinks_check_id ON backlinks(backlink_check_id);
-      CREATE INDEX IF NOT EXISTS idx_backlinks_referring_domain ON backlinks(referring_domain);
-      CREATE INDEX IF NOT EXISTS idx_backlinks_status ON backlinks(status);
-      CREATE INDEX IF NOT EXISTS idx_backlinks_last_seen ON backlinks(last_seen_date);
-      CREATE INDEX IF NOT EXISTS idx_backlink_checks_website_id ON backlink_checks(website_id);
-      CREATE INDEX IF NOT EXISTS idx_backlink_checks_date ON backlink_checks(check_date);
-      CREATE INDEX IF NOT EXISTS idx_backlink_checks_status ON backlink_checks(check_status);
-
       -- Backlink discovery settings removed - feature discontinued
     `);
-    console.log('✅ Core database schema initialized');
+    console.log('✅ Core database tables created');
+
+    // Create indexes separately to avoid blocking on errors
+    await createIndexesSafely();
 
     // Initialize Article Generator tables separately
     await initArticleGeneratorTables();
 
+    console.log('✅ Database initialization complete');
+
   } catch (error) {
-    console.error('Error initializing database schema:', error);
+    console.error('❌ Error initializing core database schema:', error.message);
   }
+};
+
+// Create indexes with individual error handling
+const createIndexesSafely = async () => {
+  const indexes = [
+    'CREATE INDEX IF NOT EXISTS idx_backlinks_website_id ON backlinks(website_id)',
+    'CREATE INDEX IF NOT EXISTS idx_backlinks_check_id ON backlinks(backlink_check_id)',
+    'CREATE INDEX IF NOT EXISTS idx_backlinks_referring_domain ON backlinks(referring_domain)',
+    'CREATE INDEX IF NOT EXISTS idx_backlinks_status ON backlinks(status)',
+    'CREATE INDEX IF NOT EXISTS idx_backlinks_last_seen ON backlinks(last_seen_date)',
+    'CREATE INDEX IF NOT EXISTS idx_backlink_checks_website_id ON backlink_checks(website_id)',
+    'CREATE INDEX IF NOT EXISTS idx_backlink_checks_date ON backlink_checks(check_date)',
+    'CREATE INDEX IF NOT EXISTS idx_backlink_checks_status ON backlink_checks(check_status)',
+  ];
+
+  for (const indexSql of indexes) {
+    try {
+      await pool.query(indexSql);
+    } catch (error) {
+      // Log but don't fail - index might already exist or table structure differs
+      console.warn(`⚠️ Index creation skipped: ${error.message}`);
+    }
+  }
+  console.log('✅ Indexes processed');
 };
 
 // Separate function for Article Generator tables to isolate any errors
