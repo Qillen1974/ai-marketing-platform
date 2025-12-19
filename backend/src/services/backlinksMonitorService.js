@@ -1,14 +1,14 @@
 const { pool } = require('../config/database');
 const {
-  getBacklinkStats,
-  getDetailedBacklinks,
-  getTopReferringDomains,
-  getAnchorTexts,
-} = require('./seRankingApiService');
+  getBacklinks: getGSCBacklinks,
+  getTopReferringDomains: getGSCTopDomains,
+  getBacklinkStats: getGSCStats,
+  checkAccess,
+} = require('./googleSearchConsoleService');
 const { matchBacklinksToKeywords } = require('./keywordSyncService');
 
 /**
- * Main function to check backlinks for a website
+ * Main function to check backlinks for a website using Google Search Console
  * @param {number} websiteId - The website ID
  * @param {string} domain - The domain to check
  * @returns {object} - Backlink check results
@@ -27,22 +27,48 @@ const checkBacklinksForWebsite = async (websiteId, domain) => {
     const checkId = checkResult.rows[0].id;
 
     try {
-      // Call SE Ranking API in parallel
-      console.log('📡 Fetching backlink data from SE Ranking API...');
-      const [stats, detailedBacklinks, topDomains, anchorTexts] = await Promise.all([
-        getBacklinkStats(domain),
-        getDetailedBacklinks(domain, 500, 0),
-        getTopReferringDomains(domain, 100),
-        getAnchorTexts(domain, 100),
-      ]);
+      // Check if we have access to this domain in GSC
+      console.log('📡 Fetching backlink data from Google Search Console...');
 
-      console.log(`📊 API returned: ${detailedBacklinks?.backlinks?.length || 0} backlinks`);
+      // Get backlinks from Google Search Console
+      const gscResult = await getGSCBacklinks(domain);
+
+      if (gscResult.error) {
+        console.log(`⚠️ GSC Error: ${gscResult.error}`);
+        if (gscResult.suggestion) {
+          console.log(`💡 Suggestion: ${gscResult.suggestion}`);
+        }
+
+        // Update check with error
+        await pool.query(
+          `UPDATE backlink_checks SET check_status = 'failed', error_message = $1 WHERE id = $2`,
+          [gscResult.error, checkId]
+        );
+
+        throw new Error(gscResult.error);
+      }
+
+      const stats = gscResult.stats;
+      const backlinksData = gscResult.backlinks || [];
+      const topDomains = gscResult.externalLinks || [];
+
+      console.log(`📊 GSC returned: ${backlinksData.length} backlinks from ${stats.totalReferringDomains} domains`);
+
+      // Convert GSC backlinks to our format
+      const formattedBacklinks = backlinksData.map(bl => ({
+        referring_page: bl.referringDomain,
+        source_url: bl.referringDomain,
+        target_url: bl.targetUrl || `https://${domain}`,
+        anchor: bl.anchorText,
+        dofollow: bl.isDofollow !== false,
+        link_type: 'dofollow',
+      }));
 
       // Process backlinks and save to database
       const { newCount, existingCount, backlinkIds } = await processBacklinkData(
         websiteId,
         checkId,
-        detailedBacklinks?.backlinks || []
+        formattedBacklinks
       );
 
       // Mark backlinks not found in current check as lost
@@ -51,8 +77,8 @@ const checkBacklinksForWebsite = async (websiteId, domain) => {
       // Calculate and save metrics
       await calculateBacklinkMetrics(websiteId, checkId, {
         stats,
-        topDomains: topDomains?.domains || [],
-        anchorTexts: anchorTexts?.anchorTexts || [],
+        topDomains: topDomains.slice(0, 10) || [],
+        anchorTexts: [], // GSC doesn't provide anchor text data
         newCount,
         lostCount,
       });
@@ -91,8 +117,9 @@ const checkBacklinksForWebsite = async (websiteId, domain) => {
         totalBacklinks: backlinkIds.length,
         newBacklinks: newCount,
         lostBacklinks: lostCount,
-        referringDomains: topDomains?.domains?.length || 0,
+        referringDomains: stats.totalReferringDomains || topDomains.length || 0,
         backlinks: backlinksResult.rows,
+        source: 'Google Search Console',
       };
     } catch (error) {
       // Update check record with error
