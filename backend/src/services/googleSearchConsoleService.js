@@ -23,13 +23,13 @@ const getSearchConsoleClient = async () => {
   }
 
   try {
-    // Fix escaped newlines that Railway may have double-escaped
-    // Replace literal \\n with actual \n for the private key
-    serviceAccountJson = serviceAccountJson.replace(/\\\\n/g, '\\n');
+    // Railway converts \n escape sequences to actual newlines, which breaks JSON parsing
+    // Replace actual newlines with \n escape sequences so JSON.parse works
+    serviceAccountJson = serviceAccountJson.replace(/\r?\n/g, '\\n');
 
     const serviceAccount = JSON.parse(serviceAccountJson);
 
-    // Also fix newlines in the private key if they got converted to literal \n strings
+    // After parsing, convert \n back to actual newlines for the private key
     if (serviceAccount.private_key) {
       serviceAccount.private_key = serviceAccount.private_key.replace(/\\n/g, '\n');
     }
