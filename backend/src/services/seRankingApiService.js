@@ -24,6 +24,13 @@ const seRankingClient = axios.create({
   },
 });
 
+// Add API key to all requests as query parameter (some endpoints require this)
+seRankingClient.interceptors.request.use((config) => {
+  config.params = config.params || {};
+  config.params.apikey = process.env.SE_RANKING_API_KEY;
+  return config;
+});
+
 // ============================================
 // DOMAIN ANALYSIS API
 // ============================================
