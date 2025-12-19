@@ -8,7 +8,8 @@
     "build": "echo 'Backend build skipped - no build required'",
     "start": "node src/index.js",
     "test": "jest",
-    "migrate:backlinks": "node src/migrations/add_backlinks_tables.js"
+    "migrate:backlinks": "node src/migrations/add_backlinks_tables.js",
+    "migrate:fix-backlinks": "node src/migrations/fix_backlinks_schema.js"
   },
   "keywords": [],
   "author": "",

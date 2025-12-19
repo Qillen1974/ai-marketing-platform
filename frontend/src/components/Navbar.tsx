@@ -47,10 +47,10 @@ export default function Navbar() {
             Backlinks
           </Link>
           <Link
-            href="/dashboard/article-generator-selector"
+            href="/dashboard/seo-hub-selector"
             className="text-sm font-medium text-purple-600 hover:text-purple-800"
           >
-            Articles
+            SEO Hub
           </Link>
           <Link
             href="/dashboard/quota"

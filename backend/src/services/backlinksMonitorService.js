@@ -5,6 +5,7 @@ const {
   getTopReferringDomains,
   getAnchorTexts,
 } = require('./seRankingApiService');
+const { matchBacklinksToKeywords } = require('./keywordSyncService');
 
 /**
  * Main function to check backlinks for a website
@@ -67,6 +68,14 @@ const checkBacklinksForWebsite = async (websiteId, domain) => {
       );
 
       console.log(`✅ Backlink check completed: ${newCount} new, ${lostCount} lost`);
+
+      // Match backlinks to campaign keywords for SEO Hub
+      try {
+        await matchBacklinksToKeywords(websiteId);
+        console.log('✅ Backlinks matched to keywords');
+      } catch (matchError) {
+        console.error('⚠️ Backlink-keyword matching failed (non-blocking):', matchError.message);
+      }
 
       // Get updated backlinks for response
       const backlinksResult = await pool.query(

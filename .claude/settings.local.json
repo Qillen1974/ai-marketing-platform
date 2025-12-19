@@ -1,7 +1,12 @@
 {
   "permissions": {
     "allow": [
-      "Bash(npm init:*)"
+      "Bash(npm init:*)",
+      "WebSearch",
+      "Bash(git add:*)",
+      "Bash(git commit -m \"$(cat <<''EOF''\nAdd backlinks monitor feature for tracking domain backlinks\n\n- Add backlinks and backlink_checks database tables\n- Implement backlinks monitor service with SE Ranking API integration\n- Add controller and routes for backlinks endpoints\n- Create frontend backlinks monitor page with metrics dashboard\n- Add website selector page for choosing which site to monitor\n- Track new vs lost backlinks between checks\n- Display backlink metrics: total, new this month, referring domains, dofollow %\n- Add Backlinks navigation link to navbar\n\n🤖 Generated with [Claude Code](https://claude.com/claude-code)\n\nCo-Authored-By: Claude Sonnet 4.5 <noreply@anthropic.com>\nEOF\n)\")",
+      "Bash(git commit:*)",
+      "Bash(git push:*)"
     ],
     "deny": [],
     "ask": []

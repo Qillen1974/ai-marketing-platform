@@ -9,6 +9,7 @@ const { parse } = require('node-html-parser');
 const { pool } = require('../config/database');
 const { getDecryptedApiKey } = require('../controllers/settingsController');
 const { generateArticleHtml, calculateWordCount, generateSlug } = require('../templates/articleTemplate');
+const { syncCampaignKeywordsToRankings } = require('./keywordSyncService');
 
 // ============================================
 // Retry Logic with Exponential Backoff
@@ -622,7 +623,17 @@ const createCampaign = async (websiteId, userId, campaignData) => {
     ]
   );
 
-  return result.rows[0];
+  const campaign = result.rows[0];
+
+  // Sync keywords to rankings system for unified tracking
+  try {
+    await syncCampaignKeywordsToRankings(websiteId, campaign.id);
+    console.log('✅ Keywords synced to rankings system');
+  } catch (syncError) {
+    console.error('⚠️ Keyword sync failed (non-blocking):', syncError.message);
+  }
+
+  return campaign;
 };
 
 /**
@@ -646,7 +657,20 @@ const updateCampaignKeywords = async (campaignId, autoKeywords, customKeywords) 
      RETURNING *`,
     [campaignId, autoKeywords, customKeywords]
   );
-  return result.rows[0];
+
+  const campaign = result.rows[0];
+
+  // Sync updated keywords to rankings system
+  if (campaign) {
+    try {
+      await syncCampaignKeywordsToRankings(campaign.website_id, campaignId);
+      console.log('✅ Keywords synced to rankings system after update');
+    } catch (syncError) {
+      console.error('⚠️ Keyword sync failed (non-blocking):', syncError.message);
+    }
+  }
+
+  return campaign;
 };
 
 /**

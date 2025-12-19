@@ -417,8 +417,14 @@ const initDatabase = async () => {
     // Create indexes separately to avoid blocking on errors
     await createIndexesSafely();
 
+    // Fix backlinks schema (ensures all columns exist)
+    await fixBacklinksSchema();
+
     // Initialize Article Generator tables separately
     await initArticleGeneratorTables();
+
+    // Initialize SEO Hub tables
+    await initSEOHubTables();
 
     console.log('✅ Database initialization complete');
 
@@ -449,6 +455,69 @@ const createIndexesSafely = async () => {
     }
   }
   console.log('✅ Indexes processed');
+};
+
+// Fix backlinks schema - ensures all required columns exist
+const fixBacklinksSchema = async () => {
+  try {
+    console.log('🔧 Checking backlinks schema...');
+
+    // Add missing columns to backlink_checks if they don't exist
+    const backlinksCheckColumns = [
+      { name: 'website_id', sql: 'ALTER TABLE backlink_checks ADD COLUMN IF NOT EXISTS website_id INTEGER REFERENCES websites(id) ON DELETE CASCADE' },
+      { name: 'check_date', sql: 'ALTER TABLE backlink_checks ADD COLUMN IF NOT EXISTS check_date TIMESTAMP DEFAULT NOW()' },
+      { name: 'check_status', sql: 'ALTER TABLE backlink_checks ADD COLUMN IF NOT EXISTS check_status VARCHAR(50) DEFAULT \'completed\'' },
+      { name: 'total_backlinks', sql: 'ALTER TABLE backlink_checks ADD COLUMN IF NOT EXISTS total_backlinks INTEGER DEFAULT 0' },
+      { name: 'total_referring_domains', sql: 'ALTER TABLE backlink_checks ADD COLUMN IF NOT EXISTS total_referring_domains INTEGER DEFAULT 0' },
+      { name: 'dofollow_count', sql: 'ALTER TABLE backlink_checks ADD COLUMN IF NOT EXISTS dofollow_count INTEGER DEFAULT 0' },
+      { name: 'nofollow_count', sql: 'ALTER TABLE backlink_checks ADD COLUMN IF NOT EXISTS nofollow_count INTEGER DEFAULT 0' },
+      { name: 'new_backlinks_count', sql: 'ALTER TABLE backlink_checks ADD COLUMN IF NOT EXISTS new_backlinks_count INTEGER DEFAULT 0' },
+      { name: 'lost_backlinks_count', sql: 'ALTER TABLE backlink_checks ADD COLUMN IF NOT EXISTS lost_backlinks_count INTEGER DEFAULT 0' },
+      { name: 'average_domain_authority', sql: 'ALTER TABLE backlink_checks ADD COLUMN IF NOT EXISTS average_domain_authority DECIMAL' },
+      { name: 'top_referring_domains', sql: 'ALTER TABLE backlink_checks ADD COLUMN IF NOT EXISTS top_referring_domains JSONB' },
+      { name: 'anchor_text_distribution', sql: 'ALTER TABLE backlink_checks ADD COLUMN IF NOT EXISTS anchor_text_distribution JSONB' },
+      { name: 'api_response_data', sql: 'ALTER TABLE backlink_checks ADD COLUMN IF NOT EXISTS api_response_data JSONB' },
+      { name: 'error_message', sql: 'ALTER TABLE backlink_checks ADD COLUMN IF NOT EXISTS error_message TEXT' },
+    ];
+
+    for (const col of backlinksCheckColumns) {
+      try {
+        await pool.query(col.sql);
+      } catch (err) {
+        // Ignore errors - column might already exist or table might not exist yet
+      }
+    }
+
+    // Add missing columns to backlinks table
+    const backlinksColumns = [
+      { name: 'backlink_check_id', sql: 'ALTER TABLE backlinks ADD COLUMN IF NOT EXISTS backlink_check_id INTEGER REFERENCES backlink_checks(id) ON DELETE CASCADE' },
+      { name: 'referring_domain', sql: 'ALTER TABLE backlinks ADD COLUMN IF NOT EXISTS referring_domain VARCHAR(255)' },
+      { name: 'target_page', sql: 'ALTER TABLE backlinks ADD COLUMN IF NOT EXISTS target_page VARCHAR(500)' },
+      { name: 'link_type', sql: 'ALTER TABLE backlinks ADD COLUMN IF NOT EXISTS link_type VARCHAR(50)' },
+      { name: 'is_dofollow', sql: 'ALTER TABLE backlinks ADD COLUMN IF NOT EXISTS is_dofollow BOOLEAN DEFAULT TRUE' },
+      { name: 'inlink_rank', sql: 'ALTER TABLE backlinks ADD COLUMN IF NOT EXISTS inlink_rank INTEGER' },
+      { name: 'domain_authority', sql: 'ALTER TABLE backlinks ADD COLUMN IF NOT EXISTS domain_authority INTEGER' },
+      { name: 'page_authority', sql: 'ALTER TABLE backlinks ADD COLUMN IF NOT EXISTS page_authority INTEGER' },
+      { name: 'status', sql: 'ALTER TABLE backlinks ADD COLUMN IF NOT EXISTS status VARCHAR(50) DEFAULT \'active\'' },
+      { name: 'first_found_date', sql: 'ALTER TABLE backlinks ADD COLUMN IF NOT EXISTS first_found_date TIMESTAMP DEFAULT NOW()' },
+      { name: 'last_seen_date', sql: 'ALTER TABLE backlinks ADD COLUMN IF NOT EXISTS last_seen_date TIMESTAMP DEFAULT NOW()' },
+      { name: 'backlink_data', sql: 'ALTER TABLE backlinks ADD COLUMN IF NOT EXISTS backlink_data JSONB' },
+      { name: 'notes', sql: 'ALTER TABLE backlinks ADD COLUMN IF NOT EXISTS notes TEXT' },
+      { name: 'updated_at', sql: 'ALTER TABLE backlinks ADD COLUMN IF NOT EXISTS updated_at TIMESTAMP DEFAULT NOW()' },
+    ];
+
+    for (const col of backlinksColumns) {
+      try {
+        await pool.query(col.sql);
+      } catch (err) {
+        // Ignore errors
+      }
+    }
+
+    console.log('✅ Backlinks schema check complete');
+  } catch (error) {
+    console.error('⚠️ Error fixing backlinks schema:', error.message);
+  }
 };
 
 // Separate function for Article Generator tables to isolate any errors
@@ -538,6 +607,57 @@ const initArticleGeneratorTables = async () => {
     console.log('✅ Article Generator tables initialized successfully');
   } catch (error) {
     console.error('❌ Error initializing Article Generator tables:', error.message);
+    // Don't throw - allow server to start even if these tables fail
+  }
+};
+
+// Initialize SEO Hub tables - Unified keyword tracking and backlink-keyword matching
+const initSEOHubTables = async () => {
+  try {
+    console.log('🎯 Initializing SEO Hub tables...');
+
+    // Add source tracking columns to keywords table
+    await pool.query(`
+      ALTER TABLE keywords ADD COLUMN IF NOT EXISTS source VARCHAR(50) DEFAULT 'manual'
+    `);
+    await pool.query(`
+      ALTER TABLE keywords ADD COLUMN IF NOT EXISTS campaign_id INTEGER REFERENCES article_campaigns(id) ON DELETE SET NULL
+    `);
+    console.log('   ✅ Keywords table updated with source and campaign_id columns');
+
+    // Add SEO metrics to article_campaigns
+    await pool.query(`
+      ALTER TABLE article_campaigns ADD COLUMN IF NOT EXISTS seo_score INTEGER DEFAULT 0
+    `);
+    await pool.query(`
+      ALTER TABLE article_campaigns ADD COLUMN IF NOT EXISTS keywords_synced_at TIMESTAMP
+    `);
+    console.log('   ✅ Article campaigns table updated with SEO metrics columns');
+
+    // Create backlink_keyword_matches table
+    await pool.query(`
+      CREATE TABLE IF NOT EXISTS backlink_keyword_matches (
+        id SERIAL PRIMARY KEY,
+        backlink_id INTEGER NOT NULL REFERENCES backlinks(id) ON DELETE CASCADE,
+        keyword_id INTEGER NOT NULL REFERENCES keywords(id) ON DELETE CASCADE,
+        match_type VARCHAR(50) NOT NULL,
+        match_score INTEGER DEFAULT 0,
+        created_at TIMESTAMP DEFAULT NOW(),
+        UNIQUE(backlink_id, keyword_id)
+      )
+    `);
+    console.log('   ✅ backlink_keyword_matches table created');
+
+    // Create indexes for SEO Hub
+    await pool.query(`CREATE INDEX IF NOT EXISTS idx_keywords_source ON keywords(source)`);
+    await pool.query(`CREATE INDEX IF NOT EXISTS idx_keywords_campaign_id ON keywords(campaign_id)`);
+    await pool.query(`CREATE INDEX IF NOT EXISTS idx_backlink_keyword_matches_backlink ON backlink_keyword_matches(backlink_id)`);
+    await pool.query(`CREATE INDEX IF NOT EXISTS idx_backlink_keyword_matches_keyword ON backlink_keyword_matches(keyword_id)`);
+    console.log('   ✅ SEO Hub indexes created');
+
+    console.log('✅ SEO Hub tables initialized successfully');
+  } catch (error) {
+    console.error('❌ Error initializing SEO Hub tables:', error.message);
     // Don't throw - allow server to start even if these tables fail
   }
 };
