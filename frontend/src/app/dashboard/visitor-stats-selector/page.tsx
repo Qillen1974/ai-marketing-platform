@@ -3,18 +3,14 @@
 import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { useAuthStore } from '@/stores/authStore';
-import api from '@/lib/api';
-
-interface Website {
-  id: number;
-  domain: string;
-  ga4_property_id: string | null;
-}
+import { useWebsiteStore } from '@/stores/websiteStore';
+import toast from 'react-hot-toast';
 
 export default function VisitorStatsSelectorPage() {
   const token = useAuthStore((state) => state.token);
   const router = useRouter();
-  const [websites, setWebsites] = useState<Website[]>([]);
+  const websites = useWebsiteStore((state) => state.websites);
+  const fetchWebsites = useWebsiteStore((state) => state.fetchWebsites);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
@@ -23,19 +19,18 @@ export default function VisitorStatsSelectorPage() {
       return;
     }
 
+    const loadWebsites = async () => {
+      try {
+        await fetchWebsites();
+      } catch (error) {
+        toast.error('Failed to load websites');
+      } finally {
+        setLoading(false);
+      }
+    };
+
     loadWebsites();
   }, [token]);
-
-  const loadWebsites = async () => {
-    try {
-      const response = await api.get('/websites');
-      setWebsites(response.data);
-    } catch (error) {
-      console.error('Error loading websites:', error);
-    } finally {
-      setLoading(false);
-    }
-  };
 
   const handleSelectWebsite = (websiteId: number) => {
     router.push(`/dashboard/visitor-stats/${websiteId}`);
@@ -86,15 +81,9 @@ export default function VisitorStatsSelectorPage() {
                   </div>
                   <div>
                     <h3 className="text-lg font-bold text-gray-900">{website.domain}</h3>
-                    {website.ga4_property_id ? (
-                      <p className="text-sm text-green-600">
-                        GA4 Connected (Property: {website.ga4_property_id})
-                      </p>
-                    ) : (
-                      <p className="text-sm text-orange-600">
-                        GA4 Not Configured - Click to set up
-                      </p>
-                    )}
+                    <p className="text-sm text-gray-500">
+                      Click to view visitor statistics
+                    </p>
                   </div>
                 </div>
                 <div className="text-gray-400">
