@@ -47,6 +47,12 @@ export default function Navbar() {
             Backlinks
           </Link>
           <Link
+            href="/dashboard/visitor-stats-selector"
+            className="text-sm font-medium text-green-600 hover:text-green-800"
+          >
+            Visitors
+          </Link>
+          <Link
             href="/dashboard/seo-hub-selector"
             className="text-sm font-medium text-purple-600 hover:text-purple-800"
           >

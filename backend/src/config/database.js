@@ -426,6 +426,9 @@ const initDatabase = async () => {
     // Initialize SEO Hub tables
     await initSEOHubTables();
 
+    // Add GA4 Property ID column
+    await addGA4PropertyIdColumn();
+
     console.log('✅ Database initialization complete');
 
   } catch (error) {
@@ -617,6 +620,19 @@ const initArticleGeneratorTables = async () => {
   } catch (error) {
     console.error('❌ Error initializing Article Generator tables:', error.message);
     // Don't throw - allow server to start even if these tables fail
+  }
+};
+
+// Add GA4 Property ID column to websites table
+const addGA4PropertyIdColumn = async () => {
+  try {
+    console.log('📊 Adding GA4 Property ID column to websites table...');
+    await pool.query(`
+      ALTER TABLE websites ADD COLUMN IF NOT EXISTS ga4_property_id VARCHAR(50)
+    `);
+    console.log('   ✅ ga4_property_id column added to websites table');
+  } catch (error) {
+    console.error('⚠️ Error adding ga4_property_id column:', error.message);
   }
 };
 

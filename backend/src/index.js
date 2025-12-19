@@ -30,6 +30,7 @@ const siteHealthRoutes = require('./routes/siteHealthRoutes');
 const backlinksMonitorRoutes = require('./routes/backlinksMonitorRoutes');
 const articleGeneratorRoutes = require('./routes/articleGeneratorRoutes');
 const seoHubRoutes = require('./routes/seoHubRoutes');
+const visitorStatsRoutes = require('./routes/visitorStatsRoutes');
 
 const app = express();
 const PORT = process.env.PORT || 5000;
@@ -113,6 +114,9 @@ app.use('/api/articles', articleGeneratorRoutes);
 
 // SEO Hub routes (unified dashboard)
 app.use('/api/seo-hub', seoHubRoutes);
+
+// Visitor statistics routes (Google Analytics)
+app.use('/api/visitor-stats', visitorStatsRoutes);
 
 // Health check endpoint
 app.get('/health', (req, res) => {
