@@ -34,5 +34,6 @@ router.get('/:websiteId/realtime', getRealTime);
 
 // Update GA4 Property ID for a website
 router.put('/:websiteId/property', updatePropertyId);
+router.post('/:websiteId/property', updatePropertyId);
 
 module.exports = router;

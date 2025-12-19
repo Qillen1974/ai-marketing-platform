@@ -123,7 +123,7 @@ export default function VisitorStatsPage() {
 
     setSaving(true);
     try {
-      await api.put(`/visitor-stats/${websiteId}/property`, { propertyId: propertyId.trim() });
+      await api.post(`/visitor-stats/${websiteId}/property`, { propertyId: propertyId.trim() });
       toast.success('GA4 Property ID saved successfully!');
       setShowPropertyModal(false);
       loadData();
