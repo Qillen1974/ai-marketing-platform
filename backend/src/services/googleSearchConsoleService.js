@@ -38,8 +38,9 @@ const getSearchConsoleClient = async () => {
       scopes: SCOPES,
     });
 
-    const searchconsole = google.searchconsole({ version: 'v1', auth });
-    return searchconsole;
+    // Use webmasters API for links data (searchconsole API doesn't have links endpoint)
+    const webmasters = google.webmasters({ version: 'v3', auth });
+    return webmasters;
   } catch (error) {
     console.error('❌ Failed to initialize Search Console client:', error.message);
     return null;
