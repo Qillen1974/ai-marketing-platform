@@ -47,6 +47,12 @@ export default function Navbar() {
             Backlinks
           </Link>
           <Link
+            href="/dashboard/article-generator-selector"
+            className="text-sm font-medium text-purple-600 hover:text-purple-800"
+          >
+            Articles
+          </Link>
+          <Link
             href="/dashboard/quota"
             className="text-sm font-medium text-gray-600 hover:text-gray-900"
           >

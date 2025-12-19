@@ -28,6 +28,7 @@ const aiMessageRoutes = require('./routes/aiMessageRoutes');
 const competitorAnalysisRoutes = require('./routes/competitorAnalysisRoutes');
 const siteHealthRoutes = require('./routes/siteHealthRoutes');
 const backlinksMonitorRoutes = require('./routes/backlinksMonitorRoutes');
+const articleGeneratorRoutes = require('./routes/articleGeneratorRoutes');
 
 const app = express();
 const PORT = process.env.PORT || 5000;
@@ -105,6 +106,9 @@ app.use('/api/site-health', siteHealthRoutes);
 
 // Backlinks monitor routes
 app.use('/api/backlinks', backlinksMonitorRoutes);
+
+// Article generator routes
+app.use('/api/articles', articleGeneratorRoutes);
 
 // Health check endpoint
 app.get('/health', (req, res) => {
