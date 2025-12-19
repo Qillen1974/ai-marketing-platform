@@ -1,7 +1,7 @@
 'use client';
 
-import { useEffect, useState, useMemo, use } from 'react';
-import { useRouter } from 'next/navigation';
+import { useEffect, useState, useMemo } from 'react';
+import { useRouter, useParams } from 'next/navigation';
 import { useAuthStore } from '@/stores/authStore';
 import api from '@/lib/api';
 import toast from 'react-hot-toast';
@@ -57,15 +57,11 @@ interface BacklinkHistoryEntry {
   nofollow_count: number;
 }
 
-export default function BacklinksMonitorPage({
-  params,
-}: {
-  params: Promise<{ websiteId: string }>;
-}) {
-  const resolvedParams = use(params);
+export default function BacklinksMonitorPage() {
+  const params = useParams();
   const token = useAuthStore((state) => state.token);
   const router = useRouter();
-  const websiteId = Number(resolvedParams.websiteId);
+  const websiteId = Number(params.websiteId);
 
   const [backlinks, setBacklinks] = useState<BacklinkData[]>([]);
   const [metrics, setMetrics] = useState<BacklinkMetrics | null>(null);
