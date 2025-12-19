@@ -85,7 +85,7 @@ const getDomainKeywords = async (domain, countryCode = 'US', limit = 100) => {
 
 /**
  * Get backlinks summary for a domain
- * POST /v1/backlinks/summary
+ * GET /v1/backlinks/summary
  * @param {string} domain - Domain to analyze
  * @param {object} filters - Filter options (mode, etc.)
  * @returns {object} Backlinks summary data
@@ -94,9 +94,12 @@ const getDomainBacklinks = async (domain, filters = {}) => {
   try {
     console.log(`🔗 Fetching backlinks summary for ${domain}`);
 
-    const response = await seRankingClient.post('/v1/backlinks/summary', {
-      target: domain,
-      mode: filters.mode || 'domain',
+    const response = await seRankingClient.get('/v1/backlinks/summary', {
+      params: {
+        target: domain,
+        mode: filters.mode || 'domain',
+        output: 'json',
+      },
     });
 
     console.log(`✅ Backlinks summary retrieved for ${domain}`);
@@ -332,7 +335,8 @@ const getAuditedUrls = async (domain, limit = 100, offset = 0) => {
 
 /**
  * Get backlink summary statistics
- * POST /v1/backlinks/summary
+ * GET /v1/backlinks/summary
+ * Returns: backlinks count, referring domains, IPs, subnets, top anchors, TLDs, countries
  * @param {string} domain - Domain to analyze
  * @param {string} mode - 'domain', 'host', or 'url' (default: 'domain')
  * @returns {object} Backlink statistics
@@ -341,9 +345,12 @@ const getBacklinkStats = async (domain, mode = 'domain') => {
   try {
     console.log(`📊 Fetching backlink statistics for ${domain} (mode: ${mode})`);
 
-    const response = await seRankingClient.post('/v1/backlinks/summary', {
-      target: domain,
-      mode: mode,
+    const response = await seRankingClient.get('/v1/backlinks/summary', {
+      params: {
+        target: domain,
+        mode: mode,
+        output: 'json',
+      },
     });
 
     console.log(`✅ Backlink stats retrieved for ${domain}`);
@@ -360,50 +367,35 @@ const getBacklinkStats = async (domain, mode = 'domain') => {
 
 /**
  * Get top referring domains
- * GET /v1/backlinks/referring-domains
+ * Data comes from the summary endpoint (top_referring_domains field)
  * @param {string} domain - Domain to analyze
- * @param {number} limit - Number to return (max 50000)
+ * @param {number} limit - Number to return
  * @returns {object} Object with domains array
  */
 const getTopReferringDomains = async (domain, limit = 100) => {
   try {
     console.log(`🔝 Fetching top referring domains for ${domain}`);
 
-    const response = await seRankingClient.get('/v1/backlinks/referring-domains', {
-      params: {
-        target: domain,
-        mode: 'domain',
-        limit: Math.min(limit, 50000),
-        output: 'json',
-      },
-    });
+    // Get data from summary endpoint which includes top_referring_domains
+    const summary = await getBacklinkStats(domain);
 
-    const domains = response.data?.referring_domains || response.data?.domains || response.data || [];
-    console.log(`✅ Retrieved ${Array.isArray(domains) ? domains.length : 0} referring domains for ${domain}`);
+    if (summary) {
+      // Summary contains referring domain count and top referring domains
+      const domains = summary.top_referring_domains || summary.referring_domains || [];
+      console.log(`✅ Retrieved ${Array.isArray(domains) ? domains.length : 0} referring domains for ${domain}`);
+      return { domains: Array.isArray(domains) ? domains.slice(0, limit) : [] };
+    }
 
-    return { domains: Array.isArray(domains) ? domains : [] };
+    return { domains: [] };
   } catch (error) {
     console.error(`❌ Error fetching top referring domains:`, error.message);
-    if (error.response) {
-      console.error(`   Status: ${error.response.status}`);
-      console.error(`   Data:`, JSON.stringify(error.response.data));
-    }
-    // Fallback: try to get from summary
-    try {
-      const summary = await getBacklinkStats(domain);
-      if (summary?.top_referring_domains) {
-        return { domains: summary.top_referring_domains };
-      }
-    } catch (e) {
-      // Ignore fallback error
-    }
     return { domains: [] };
   }
 };
 
 /**
  * Get anchor text analysis
- * GET /v1/backlinks/anchors
+ * Data comes from the summary endpoint (top_anchors field)
  * @param {string} domain - Domain to analyze
  * @param {number} limit - Number of anchor texts
  * @returns {object} Object with anchorTexts array
@@ -412,41 +404,25 @@ const getAnchorTexts = async (domain, limit = 100) => {
   try {
     console.log(`🏷️ Fetching anchor texts for ${domain}`);
 
-    const response = await seRankingClient.get('/v1/backlinks/anchors', {
-      params: {
-        target: domain,
-        mode: 'domain',
-        limit: Math.min(limit, 50000),
-        output: 'json',
-      },
-    });
+    // Get data from summary endpoint which includes top_anchors
+    const summary = await getBacklinkStats(domain);
 
-    const anchors = response.data?.anchors || response.data?.anchor_texts || response.data || [];
-    console.log(`✅ Retrieved ${Array.isArray(anchors) ? anchors.length : 0} anchor texts for ${domain}`);
+    if (summary) {
+      const anchors = summary.top_anchors || summary.anchors || [];
+      console.log(`✅ Retrieved ${Array.isArray(anchors) ? anchors.length : 0} anchor texts for ${domain}`);
+      return { anchorTexts: Array.isArray(anchors) ? anchors.slice(0, limit) : [] };
+    }
 
-    return { anchorTexts: Array.isArray(anchors) ? anchors : [] };
+    return { anchorTexts: [] };
   } catch (error) {
     console.error(`❌ Error fetching anchor texts:`, error.message);
-    if (error.response) {
-      console.error(`   Status: ${error.response.status}`);
-      console.error(`   Data:`, JSON.stringify(error.response.data));
-    }
-    // Fallback: try to get from summary
-    try {
-      const summary = await getBacklinkStats(domain);
-      if (summary?.top_anchors) {
-        return { anchorTexts: summary.top_anchors };
-      }
-    } catch (e) {
-      // Ignore fallback error
-    }
     return { anchorTexts: [] };
   }
 };
 
 /**
  * Get new and lost backlinks
- * GET /v1/backlinks/new-lost-backlinks
+ * GET /v1/backlinks/new-lost
  * @param {string} domain - Domain to analyze
  * @param {string} type - 'new' or 'lost'
  * @param {number} limit - Number to return
@@ -456,7 +432,7 @@ const getBacklinksHistory = async (domain, type = 'new', limit = 100) => {
   try {
     console.log(`📈 Fetching ${type} backlinks for ${domain}`);
 
-    const response = await seRankingClient.get('/v1/backlinks/new-lost-backlinks', {
+    const response = await seRankingClient.get('/v1/backlinks/new-lost', {
       params: {
         target: domain,
         mode: 'domain',
@@ -472,9 +448,7 @@ const getBacklinksHistory = async (domain, type = 'new', limit = 100) => {
     return Array.isArray(backlinks) ? backlinks : [];
   } catch (error) {
     console.error(`❌ Error fetching ${type} backlinks:`, error.message);
-    if (error.response) {
-      console.error(`   Status: ${error.response.status}`);
-    }
+    // This is not critical, return empty array
     return [];
   }
 };
