@@ -210,10 +210,17 @@ const getRealTime = async (req, res) => {
  * Update GA4 Property ID for a website
  */
 const updatePropertyId = async (req, res) => {
+  console.log('📊 updatePropertyId called');
+  console.log('   Method:', req.method);
+  console.log('   Params:', req.params);
+  console.log('   Body:', req.body);
+
   try {
     const { websiteId } = req.params;
     const { propertyId } = req.body;
     const userId = req.user.id;
+
+    console.log(`   User ${userId} updating property ID for website ${websiteId} to ${propertyId}`);
 
     if (!propertyId) {
       return res.status(400).json({ error: 'Property ID is required' });

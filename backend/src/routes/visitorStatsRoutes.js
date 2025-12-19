@@ -36,4 +36,27 @@ router.get('/:websiteId/realtime', getRealTime);
 router.put('/:websiteId/property', updatePropertyId);
 router.post('/:websiteId/property', updatePropertyId);
 
+// GET endpoint for property (for debugging/fetching current property ID)
+router.get('/:websiteId/property', async (req, res) => {
+  try {
+    const { websiteId } = req.params;
+    const userId = req.user.id;
+    const { pool } = require('../config/database');
+
+    const result = await pool.query(
+      `SELECT ga4_property_id FROM websites WHERE id = $1 AND user_id = $2`,
+      [websiteId, userId]
+    );
+
+    if (result.rows.length === 0) {
+      return res.status(404).json({ error: 'Website not found' });
+    }
+
+    res.json({ propertyId: result.rows[0].ga4_property_id || null });
+  } catch (error) {
+    console.error('Error getting property ID:', error);
+    res.status(500).json({ error: 'Failed to get property ID' });
+  }
+});
+
 module.exports = router;
